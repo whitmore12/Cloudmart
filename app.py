@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from sshtunnel import SSHTunnelForwarder
 import psycopg
@@ -15,6 +15,16 @@ from s3_config import s3, BUCKET_NAME, AWS_REGION
 
 app = Flask(__name__)
 CORS(app)
+
+
+@app.get("/")
+def homepage():
+    return send_from_directory("Frontend", "index.html")
+
+
+@app.get("/<path:filename>")
+def frontend_file(filename):
+    return send_from_directory("Frontend", filename)
 
 # Database & Tunnel Configuration
 SSH_HOST = "18.190.235.250"
