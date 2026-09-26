@@ -5,7 +5,13 @@ import psycopg
 import bcrypt
 import os
 import uuid
+import subprocess
 from dotenv import load_dotenv
+
+                     
+"""
+Edited by Vaughn Huey 9/24/26
+"""
 
 # Load environment variables from .env
 load_dotenv()
@@ -27,15 +33,15 @@ def frontend_file(filename):
     return send_from_directory("Frontend", filename)
 
 # Database & Tunnel Configuration
-SSH_HOST = "18.190.235.250"
+SSH_HOST = "3.148.171.237"
 SSH_USER = "ec2-user"
-SSH_KEY_PATH = os.path.join(os.path.dirname(__file__), "Resources", "ec2Test.pem")
+SSH_KEY_PATH = os.path.join(os.path.dirname(__file__), "Resources", "cloudpair.pem")
 
-RDS_HOST = "cloudmart3-4.cjy4c6csc3wv.us-east-2.rds.amazonaws.com"
+RDS_HOST = "ecamp-1.cv4gm4m8scfb.us-east-2.rds.amazonaws.com"
 RDS_PORT = 5432
-DB_NAME = "cloudmartdb"
+DB_NAME = "postgres"
 DB_USER = "postgres"
-DB_PASSWORD = "password"
+DB_PASSWORD = "ecamppass123"
 
 tunnel = None
 

@@ -1,6 +1,8 @@
 """
 CloudMart Database Configuration
 Connects to AWS RDS PostgreSQL via SSH tunnel through EC2
+
+Edited by vaughn huey 9/24/26
 """
 
 import os
@@ -8,16 +10,16 @@ from sshtunnel import SSHTunnelForwarder
 import psycopg
 
 # SSH Tunnel Configuration
-SSH_HOST = "16.59.45.159"
+SSH_HOST = "3.148.171.237"
 SSH_USER = "ec2-user"
-SSH_KEY_PATH = os.path.join(os.path.dirname(__file__), "..", "Resources", "ec2Test.pem")
+SSH_KEY_PATH = os.path.join(os.path.dirname(__file__), "..", "Resources", "cloudpair.pem")
 
 # RDS Configuration
-RDS_HOST = "cloudmart3-4.cjy4c6csc3wv.us-east-2.rds.amazonaws.com"
+RDS_HOST = "ecamp-1.cv4gm4m8scfb.us-east-2.rds.amazonaws.com"
 RDS_PORT = 5432
-DB_NAME = "cloudmartdb"
+DB_NAME = "postgres"
 DB_USER = "postgres"
-DB_PASSWORD = "password"
+DB_PASSWORD = "ecamppass123"
 
 # Global tunnel reference
 _tunnel = None
@@ -47,7 +49,8 @@ def get_connection():
         port=tunnel.local_bind_port,
         dbname=DB_NAME,
         user=DB_USER,
-        password=DB_PASSWORD
+        password=DB_PASSWORD,
+        sslmode="require" 
     )
 
 

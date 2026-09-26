@@ -1,6 +1,6 @@
 # Nickodemus made this file and code
 import os
-import boto3
+import boto3  # type: ignore[import-not-found]
 
 s3 = boto3.client(
     "s3",
