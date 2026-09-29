@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CloudMart | Create Admin Account</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font: 16px Arial, sans-serif; color: #fff; background: #0b1020; display: grid; place-items: center; padding: 24px; }
+    main { width: min(100%, 440px); padding: 30px; background: #111; border: 1px solid #1e2438; border-radius: 12px; box-shadow: 0 0 20px #0008; }
+    h1 { margin: 0 0 10px; text-align: center; font-size: 25px; }
+    p { color: #aab4d0; line-height: 1.5; }
+    label { display: block; margin: 18px 0 7px; color: #ccd6f6; font-size: 14px; }
+    input { width: 100%; padding: 12px; color: #fff; background: #1e2438; border: 1px solid #34415c; border-radius: 6px; }
+    button { width: 100%; margin-top: 22px; padding: 13px; border: 0; border-radius: 6px; color: #fff; background: #2563eb; font-size: 16px; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .message { min-height: 24px; margin-top: 15px; text-align: center; }
+    .error { color: #ff8585; } .success { color: #4ade80; }
+    a { display: block; margin-top: 14px; color: #60a5fa; text-align: center; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Create Admin Account</h1>
+    <p id="description">Checking the admin setup status…</p>
+    <form id="adminForm" hidden>
+      <div id="verificationFields"></div>
+      <label for="email">Hampton email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@my.hamptonu.edu">
+      <label for="username">Admin username</label>
+      <input id="username" name="username" type="text" autocomplete="username" required maxlength="50">
+      <label for="password">Admin password</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+      <button id="submitButton" type="submit">Create Admin Account</button>
+    </form>
+    <div id="message" class="message" role="status"></div>
+    <a href="Signin.html">Back to sign in</a>
+  </main>
+  <script>
+    const API = window.location.origin;
+    const form = document.getElementById("adminForm");
+    const verificationFields = document.getElementById("verificationFields");
+    const description = document.getElementById("description");
+    const message = document.getElementById("message");
+    let bootstrapAvailable = false;
+
+    async function loadSetupStatus() {
+      try {
+        const res = await fetch(API + "/api/auth/admin-setup-status");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not check admin setup.");
+        bootstrapAvailable = data.bootstrapAvailable;
+        if (bootstrapAvailable) {
+          description.textContent = "Create the first admin account using the one-time setup code configured on the server.";
+          verificationFields.innerHTML = '<label for="bootstrapToken">One-time setup code</label><input id="bootstrapToken" name="bootstrapToken" type="password" autocomplete="off" required>';
+        } else {
+          description.textContent = "An admin already exists. Verify with an existing admin account to create another.";
+          verificationFields.innerHTML = '<label for="creatorUsername">Existing admin username</label><input id="creatorUsername" name="creatorUsername" type="text" autocomplete="username" required><label for="creatorPassword">Existing admin password</label><input id="creatorPassword" name="creatorPassword" type="password" autocomplete="current-password" required>';
+        }
+        form.hidden = false;
+      } catch (error) {
+        description.textContent = "Admin setup is unavailable right now.";
+        message.textContent = error.message;
+        message.className = "message error";
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = document.getElementById("submitButton");
+      const payload = Object.fromEntries(new FormData(form).entries());
+      button.disabled = true;
+      message.textContent = "";
+      try {
+        const res = await fetch(API + "/api/auth/create-admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not create the admin account.");
+        form.hidden = true;
+        description.textContent = "Admin account created. Sign in with the new username and password.";
+        message.textContent = "Admin account created successfully.";
+        message.className = "message success";
+      } catch (error) {
+        message.textContent = error.message;
+        message.className = "message error";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    loadSetupStatus();
+  </script>
+</body>
+</html>

@@ -395,7 +395,7 @@ body {
 <body>
 <header class="site-header">
   <a class="brand" href="index.html">
-    <img src="https://cloudmart-images.s3.us-east-2.amazonaws.com/Logo.png" class="logo" alt="CloudMart Logo">
+    <img src="/Resources/CloudMartLogo.png" class="logo" alt="CloudMart Logo">
     <span>CloudMart</span>
   </a>
   <button class="back-btn" onclick="window.location.href='index.html'">← Back to Marketplace</button>
@@ -639,34 +639,20 @@ async function uploadProfileImageIfNeeded() {
     return pendingProfileImageUrl || (currentProfileData ? currentProfileData.profile_image : "");
   }
 
-  const presignRes = await fetch(`${API}/api/uploads/profile-presign`, {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const uploadRes = await fetch(`${API}/api/uploads/profile`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      fileName: file.name,
-      fileType: file.type
-    })
+    body: formData
   });
-
-  const presignData = await presignRes.json();
-
-  if (!presignRes.ok) {
-    throw new Error(presignData.error || "Failed to create upload URL.");
-  }
-
-  const uploadRes = await fetch(presignData.uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": file.type
-    },
-    body: file
-  });
+  const uploadData = await uploadRes.json();
 
   if (!uploadRes.ok) {
-    throw new Error("Failed to upload image to S3.");
+    throw new Error(uploadData.error || "Failed to upload profile image.");
   }
 
-  return presignData.imageUrl;
+  return uploadData.imageUrl;
 }
 
 async function saveProfileChanges() {

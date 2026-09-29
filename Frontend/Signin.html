@@ -106,7 +106,7 @@
 <body>
   <header class="nav">
     <a href="index.html" class="brand">
-      <img src="https://cloudmart-images.s3.us-east-2.amazonaws.com/Logo.png" class="nav-logo" alt="CloudMart Logo">
+      <img src="/Resources/CloudMartLogo.png" class="nav-logo" alt="CloudMart Logo">
       <span>CloudMart</span>
     </a>
   </header>
@@ -131,7 +131,7 @@
 
       <div class="row">
         <a href="#" id="toggleMode">Need an account? Create one</a>
-        <a href="admin.html" class="admin-link">Create Admin Account</a>
+        <a href="admin-create.html" class="admin-link">Create Admin Account</a>
       </div>
 
       <div id="message" class="msg"></div>
@@ -139,7 +139,7 @@
   </main>
 
   <script>
-    const API_BASE = "http://localhost:5001";
+    const API_BASE = window.location.origin;
     const emailWrap = document.getElementById("emailWrap");
     const modeTitle = document.getElementById("modeTitle");
     const modeSub = document.getElementById("modeSub");
@@ -179,7 +179,6 @@
             throw new Error("Hampton email required.");
           }
           body.email = email;
-          body.role = "user";
         }
 
         const res = await fetch(API_BASE + endpoint, {
@@ -194,7 +193,7 @@
         if (!isCreateMode) {
           // Store entire user object to include roles for index.html
           localStorage.setItem("user", JSON.stringify(data.user));
-          window.location.href = "index.html";
+          window.location.href = data.user.role === "admin" ? "admin.html" : "index.html";
         } else {
           setMsg("Account created! Please sign in.", false);
           toggleMode.click();

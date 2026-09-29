@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 from sshtunnel import SSHTunnelForwarder
 import psycopg
@@ -6,6 +6,8 @@ import bcrypt
 import os
 import uuid
 import subprocess
+import hmac
+import re
 from dotenv import load_dotenv
 
                      
@@ -26,6 +28,11 @@ CORS(app)
 @app.get("/")
 def homepage():
     return send_from_directory("Frontend", "index.html")
+
+
+@app.get("/Resources/<path:filename>")
+def resource_file(filename):
+    return send_from_directory("Resources", filename)
 
 
 @app.get("/<path:filename>")
@@ -164,9 +171,19 @@ def init_db():
 # ========================
 @app.route("/api/auth/register", methods=["POST"])
 def register():
-    data = request.get_json()
-    password_hash = bcrypt.hashpw(data["password"].encode(), bcrypt.gensalt()).decode()
-    role = data.get("role", "user")
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    if not email or not username or not password:
+        return jsonify({"error": "Email, username, and password are required."}), 400
+    if not email.endswith("@my.hamptonu.edu"):
+        return jsonify({"error": "Use a Hampton email address."}), 400
+    if len(username) > 50 or len(password.encode("utf-8")) > 72:
+        return jsonify({"error": "Username or password is too long."}), 400
+
+    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    role = "user"
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -174,7 +191,7 @@ def register():
     try:
         cur.execute(
             "INSERT INTO users (email, username, password_hash, role) VALUES (%s, %s, %s, %s) RETURNING id",
-            (data["email"], data["username"], password_hash, role)
+            (email, username, password_hash, role)
         )
         user_id = cur.fetchone()[0]
         conn.commit()
@@ -182,6 +199,78 @@ def register():
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 400
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/api/auth/admin-setup-status")
+def admin_setup_status():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM users WHERE LOWER(role) = 'admin')")
+        admins_exist = cur.fetchone()[0]
+        return jsonify({"bootstrapAvailable": not admins_exist}), 200
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.post("/api/auth/create-admin")
+def create_admin():
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+
+    if not email or not email.endswith("@my.hamptonu.edu"):
+        return jsonify({"error": "Use a Hampton email address."}), 400
+    if not username or len(username) > 50 or not re.fullmatch(r"[A-Za-z0-9_.-]+", username):
+        return jsonify({"error": "Enter a valid username (letters, numbers, periods, underscores, or hyphens)."}), 400
+    if len(password) < 8 or len(password.encode("utf-8")) > 72:
+        return jsonify({"error": "Password must be at least 8 characters and no more than 72 bytes."}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # Serialize setup requests so two concurrent requests cannot both bootstrap.
+        cur.execute("SELECT pg_advisory_xact_lock(%s)", (781204926,))
+        cur.execute("SELECT EXISTS (SELECT 1 FROM users WHERE LOWER(role) = 'admin')")
+        admins_exist = cur.fetchone()[0]
+
+        if not admins_exist:
+            expected_token = os.getenv("ADMIN_BOOTSTRAP_TOKEN", "")
+            supplied_token = data.get("bootstrapToken", "")
+            if not expected_token:
+                return jsonify({"error": "Admin setup is not configured on the server."}), 503
+            if not isinstance(supplied_token, str) or not hmac.compare_digest(supplied_token, expected_token):
+                return jsonify({"error": "Invalid admin setup code."}), 403
+        else:
+            creator_username = (data.get("creatorUsername") or "").strip()
+            creator_password = data.get("creatorPassword") or ""
+            cur.execute(
+                "SELECT password_hash FROM users WHERE LOWER(username) = LOWER(%s) AND LOWER(role) = 'admin'",
+                (creator_username,),
+            )
+            creator = cur.fetchone()
+            if not creator or not bcrypt.checkpw(creator_password.encode(), creator[0].encode()):
+                return jsonify({"error": "Verify with an existing admin account."}), 403
+
+        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        cur.execute(
+            "INSERT INTO users (email, username, password_hash, role) VALUES (%s, %s, %s, 'admin') RETURNING id",
+            (email, username, password_hash),
+        )
+        user_id = cur.fetchone()[0]
+        conn.commit()
+        return jsonify({"user_id": user_id, "username": username, "email": email, "role": "admin"}), 201
+    except Exception as e:
+        conn.rollback()
+        if getattr(e, "sqlstate", None) == "23505":
+            return jsonify({"error": "That email or username is already in use."}), 409
+        app.logger.exception("Admin account creation failed")
+        return jsonify({"error": "Could not create the admin account."}), 500
     finally:
         cur.close()
         conn.close()
@@ -295,6 +384,86 @@ def generate_profile_presigned_upload_url():
         return jsonify({"error": str(e)}), 500
 
 
+@app.post("/api/uploads/profile")
+def upload_profile_image():
+    image = request.files.get("file")
+    if not image or not image.filename:
+        return jsonify({"error": "Choose a profile image to upload."}), 400
+
+    content_type = image.mimetype or "application/octet-stream"
+    if not content_type.startswith("image/"):
+        return jsonify({"error": "The selected file must be an image."}), 400
+
+    try:
+        ext = os.path.splitext(image.filename)[1].lower()
+        if ext not in {".png", ".jpg", ".jpeg", ".gif", ".webp"}:
+            return jsonify({"error": "Use a PNG, JPG, GIF, or WebP image."}), 400
+
+        key = f"profiles/{uuid.uuid4()}{ext}"
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=key,
+            Body=image.stream,
+            ContentType=content_type,
+        )
+        return jsonify({"imageUrl": f"/api/profile-images/{key}"}), 200
+    except Exception as e:
+        app.logger.exception("Profile image upload failed")
+        return jsonify({"error": "Could not upload profile image to S3."}), 500
+
+
+@app.get("/api/profile-images/<path:key>")
+def serve_profile_image(key):
+    if not key.startswith("profiles/"):
+        return jsonify({"error": "Image not found."}), 404
+
+    try:
+        obj = s3.get_object(Bucket=BUCKET_NAME, Key=key)
+        return Response(
+            obj["Body"].read(),
+            mimetype=obj.get("ContentType", "application/octet-stream"),
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    except Exception:
+        return jsonify({"error": "Image not found."}), 404
+
+
+@app.post("/api/uploads/listing")
+def upload_listing_image():
+    image = request.files.get("file")
+    if not image or not image.filename:
+        return jsonify({"error": "Choose a listing image to upload."}), 400
+
+    content_type = image.mimetype or "application/octet-stream"
+    ext = os.path.splitext(image.filename)[1].lower()
+    if not content_type.startswith("image/") or ext not in {".png", ".jpg", ".jpeg", ".gif", ".webp"}:
+        return jsonify({"error": "Use a PNG, JPG, GIF, or WebP image."}), 400
+
+    key = f"listings/{uuid.uuid4()}{ext}"
+    try:
+        s3.put_object(Bucket=BUCKET_NAME, Key=key, Body=image.stream, ContentType=content_type)
+        return jsonify({"imageUrl": f"/api/listing-images/{key}"}), 200
+    except Exception:
+        app.logger.exception("Listing image upload failed")
+        return jsonify({"error": "Could not upload listing image."}), 500
+
+
+@app.get("/api/listing-images/<path:key>")
+def serve_listing_image(key):
+    if not key.startswith("listings/"):
+        return jsonify({"error": "Image not found."}), 404
+
+    try:
+        obj = s3.get_object(Bucket=BUCKET_NAME, Key=key)
+        return Response(
+            obj["Body"].read(),
+            mimetype=obj.get("ContentType", "application/octet-stream"),
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    except Exception:
+        return jsonify({"error": "Image not found."}), 404
+
+
 # ========================
 # LISTINGS
 # ========================
@@ -309,7 +478,10 @@ def create_listing():
     try:
         cur.execute("SELECT username FROM users WHERE id = %s", (data["user_id"],))
         seller_row = cur.fetchone()
-        seller_name = seller_row[0] if seller_row else "Unknown"
+        if not seller_row:
+            conn.rollback()
+            return jsonify({"error": "Your saved sign-in is no longer active. Sign out and sign in again."}), 401
+        seller_name = seller_row[0]
 
         cur.execute("""
             INSERT INTO listings (user_id, title, price, category, condition, image, seller, status)
