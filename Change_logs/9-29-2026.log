@@ -1,0 +1,6 @@
+Vaughn Huey:
+- added a heart icon on every listings 
+    for users to add the listing to their wishlist, toggles between
+    🤍 (not saved) and ❤️ (saved) state
+- added "Buy" button functionalitiy but still needs with 
+    actually purchasing the listing
