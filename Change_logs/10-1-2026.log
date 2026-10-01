@@ -6,6 +6,7 @@ Kwame:
 - Found that the RDS_HOST setting was missing in Vercel and identified the database endpoint.
 - Replaced the site logo with the eCamp logo.
 - Updated the site favicon to the eCamp icon.
+- Changed the site name from CloudMart to eCamp.
 
 Vaughn Huey:
 - Changed the "Buy" button to "Add to Cart."
