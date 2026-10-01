@@ -8,7 +8,7 @@ Edited by vaughn huey 9/24/26
 import os
 from sshtunnel import SSHTunnelForwarder
 import psycopg
-
+ 
 # Database & Tunnel Configuration
 SSH_HOST = "3.148.171.237"
 SSH_USER = "ec2-user"
