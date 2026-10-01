@@ -123,6 +123,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 </main>
 
 <script>
+const API = window.location.origin;
 // Authentication check (index.html)
 const currentUser = localStorage.getItem("currentUser");
 if (currentUser) {
@@ -198,11 +199,49 @@ function clearCart() {
     renderCart();
   }
 }
-//Successful checkout message
-function checkout() {
-  alert("Successfully checked out! (Demo Only)");
-  localStorage.setItem("cart", JSON.stringify([]));
-  window.location.href = "index.html";
+// Demo checkout records the sale, but does not process a real payment.
+async function checkout() {
+  const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const checkoutButton = document.querySelector("#cartContent button[onclick='checkout()']");
+
+  if (!cart.length) return;
+  if (!user || !user.id || !user.email) {
+    alert("Please sign in again before checking out.");
+    window.location.href = "Signin.html";
+    return;
+  }
+
+  const items = [...new Map(cart.map(item => [Number(item.id), item])).values()];
+  const purchasedIds = new Set();
+  if (checkoutButton) checkoutButton.disabled = true;
+
+  try {
+    for (const item of items) {
+      const response = await fetch(`${API}/api/listings/${Number(item.id)}/mark-sold`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          role: user.role,
+          buyer_email: user.email
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not complete checkout.");
+      purchasedIds.add(Number(item.id));
+    }
+
+    localStorage.setItem("cart", JSON.stringify([]));
+    alert("Demo checkout complete. No payment was processed. Your purchase is saved to your profile.");
+    window.location.href = `profile.html?seller=${encodeURIComponent(user.username)}#boughtSection`;
+  } catch (error) {
+    const remaining = cart.filter(item => !purchasedIds.has(Number(item.id)));
+    localStorage.setItem("cart", JSON.stringify(remaining));
+    alert(error.message || "Could not complete checkout. Please try again.");
+    renderCart();
+    if (checkoutButton) checkoutButton.disabled = false;
+  }
 }
 
 
