@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <title>CloudMart | Sign in</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="/Resources/favicon.png">
   <style>
     /* Strictly Dark Mode - No white backgrounds */
     html, body {
@@ -125,7 +126,7 @@
       <input id="username" type="text" placeholder="Username">
 
       <label>Password</label>
-      <input id="password" type="password" placeholder="Password">
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
 
       <button class="btn" id="primaryBtn">Sign in</button>
 
@@ -145,6 +146,7 @@
     const modeSub = document.getElementById("modeSub");
     const toggleMode = document.getElementById("toggleMode");
     const primaryBtn = document.getElementById("primaryBtn");
+    const passwordInput = document.getElementById("password");
     const message = document.getElementById("message");
 
     let isCreateMode = false;
@@ -161,6 +163,8 @@
       modeTitle.innerText = isCreateMode ? "Create Account" : "Sign in";
       primaryBtn.innerText = isCreateMode ? "Register" : "Sign in";
       toggleMode.innerText = isCreateMode ? "Already have an account? Sign in" : "Need an account? Create one";
+      passwordInput.minLength = isCreateMode ? 8 : 0;
+      passwordInput.autocomplete = isCreateMode ? "new-password" : "current-password";
     });
 
     primaryBtn.addEventListener("click", async () => {
@@ -169,6 +173,7 @@
       const email = document.getElementById("email").value.trim();
 
       if (!username || !password) return setMsg("Username and password required.");
+      if (isCreateMode && password.length < 8) return setMsg("Password must be at least 8 characters.");
       
       try {
         const endpoint = isCreateMode ? "/api/auth/register" : "/api/auth/login";

@@ -180,6 +180,8 @@ def register():
         return jsonify({"error": "Email, username, and password are required."}), 400
     if not email.endswith("@my.hamptonu.edu"):
         return jsonify({"error": "Use a Hampton email address."}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters."}), 400
     if len(username) > 50 or len(password.encode("utf-8")) > 72:
         return jsonify({"error": "Username or password is too long."}), 400
 
