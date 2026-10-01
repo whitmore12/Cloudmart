@@ -4,3 +4,11 @@ Vaughn Huey:
     🤍 (not saved) and ❤️ (saved) state
 - added "Buy" button functionalitiy but still needs with 
     actually purchasing the listing
+
+Kwame:
+- Added an admin account creation page.
+- Made the first admin use a setup code; later admins need approval from an existing admin.
+- Made regular sign-up create user accounts only.
+- Removed .env from Git and added it to .gitignore.
+- Fixed listing and profile picture uploads to S3.
+- Fixed the Browse Marketplace link and listing page API connection.
