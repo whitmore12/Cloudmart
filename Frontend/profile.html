@@ -869,6 +869,9 @@ async function loadBoughtItems() {
 
   try {
     const res = await fetch(`${API}/api/listings/bought/${encodeURIComponent(loggedInUser.email)}`);
+    if (!res.ok) {
+      throw new Error(`Could not load purchased items (HTTP ${res.status}).`);
+    }
     const boughtItems = await res.json();
 
     const list = Array.isArray(boughtItems) ? boughtItems : [];
@@ -878,9 +881,15 @@ async function loadBoughtItems() {
     })).join("");
 
     boughtEmpty.style.display = list.length ? "none" : "block";
+    boughtEmpty.textContent = "No purchased items found.";
+
+    if (window.location.hash === "#boughtSection") {
+      requestAnimationFrame(() => boughtSection.scrollIntoView({ behavior: "smooth" }));
+    }
   } catch (err) {
     console.error("Error loading bought items:", err);
     boughtListingsEl.innerHTML = "";
+    boughtEmpty.textContent = "Could not load purchased items. Please refresh and try again.";
     boughtEmpty.style.display = "block";
   }
 }
@@ -960,6 +969,7 @@ async function loadProfile() {
     }
 
     const listingsRes = await fetch(`${API}/api/listings/by-seller/${encodeURIComponent(seller)}`);
+    if (!listingsRes.ok) throw new Error(`Could not load listings (HTTP ${listingsRes.status}).`);
     const listings = await listingsRes.json();
 
     const activeListings = Array.isArray(listings)
@@ -993,8 +1003,6 @@ async function loadProfile() {
     soldEmpty.style.display = soldListings.length ? "none" : "block";
     deletedEmpty.style.display = deletedListings.length ? "none" : "block";
 
-    await loadBoughtItems();
-    await loadSellerReturnRequests();
   } catch (err) {
     console.error(err);
     profileName.innerText = "Error Loading Profile";
@@ -1002,6 +1010,10 @@ async function loadProfile() {
     profileEmail.textContent = "";
     profileEmail.style.display = "none";
     profileAvatarWrap.innerHTML = renderAvatar("User", "", "large");
+  } finally {
+    // A seller-listing/profile error must not prevent the buyer's own purchases from loading.
+    await loadBoughtItems();
+    await loadSellerReturnRequests();
   }
 }
 

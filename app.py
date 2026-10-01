@@ -661,7 +661,7 @@ def mark_listing_sold(listing_id):
     cur = conn.cursor()
 
     try:
-        cur.execute("SELECT user_id, COALESCE(status, 'active') FROM listings WHERE id = %s", (listing_id,))
+        cur.execute("SELECT user_id, COALESCE(status, 'active') FROM listings WHERE id = %s FOR UPDATE", (listing_id,))
         row = cur.fetchone()
 
         if not row:
@@ -690,7 +690,12 @@ def mark_listing_sold(listing_id):
             SET status = 'sold',
                 buyer_email = %s
             WHERE id = %s
+              AND COALESCE(status, 'active') = 'active'
         """, (buyer_row[1], listing_id))
+
+        if cur.rowcount != 1:
+            conn.rollback()
+            return jsonify({"error": "Listing is no longer available"}), 409
 
         conn.commit()
         return jsonify({"success": True, "message": "Listing marked as sold"}), 200
