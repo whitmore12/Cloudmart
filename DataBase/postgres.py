@@ -14,7 +14,7 @@ SSH_HOST = "3.148.171.237"
 SSH_USER = "ec2-user"
 SSH_KEY_PATH = os.path.join(os.path.dirname(__file__), "Resources", "cloudpair.pem")
 # RDS Configuration
-RDS_HOST = os.getenv("RDS_HOST")
+RDS_HOST = "ecamp-1.cv4gm4m8scfb.us-east-2.rds.amazonaws.com"
 RDS_PORT = 5432
 DB_HOST = os.getenv("DB_HOST")
 DB_NAME = "postgres"
