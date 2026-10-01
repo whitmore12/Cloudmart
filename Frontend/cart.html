@@ -200,6 +200,22 @@ function clearCart() {
   }
 }
 // Demo checkout records the sale, but does not process a real payment.
+async function markAsSold(listingId, user) {
+  const response = await fetch(`${API}/api/listings/${Number(listingId)}/mark-sold`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: user.id,
+      role: user.role,
+      buyer_email: user.email
+    })
+  });
+
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Could not mark listing as sold.");
+  return result;
+}
+
 async function checkout() {
   const cart = JSON.parse(localStorage.getItem("cart") || "[]");
   const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -218,17 +234,7 @@ async function checkout() {
 
   try {
     for (const item of items) {
-      const response = await fetch(`${API}/api/listings/${Number(item.id)}/mark-sold`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: user.id,
-          role: user.role,
-          buyer_email: user.email
-        })
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not complete checkout.");
+      await markAsSold(item.id, user);
       purchasedIds.add(Number(item.id));
     }
 

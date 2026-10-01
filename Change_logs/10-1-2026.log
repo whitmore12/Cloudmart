@@ -1,0 +1,3 @@
+Vaughn Huey:
+- Changed "Buy" button to "Add to Cart" 
+- markedAsSold is now called after the user checks out
