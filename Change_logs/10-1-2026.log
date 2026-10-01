@@ -4,6 +4,8 @@ Kwame:
 - Fixed the marketplace and profile pages so they connect to the deployed API.
 - Connected demo checkout to mark items sold and show purchases in the buyer's profile.
 - Found that the RDS_HOST setting was missing in Vercel and identified the database endpoint.
+- Replaced the site logo with the eCamp logo.
+- Updated the site favicon to the eCamp icon.
 
 Vaughn Huey:
 - Changed the "Buy" button to "Add to Cart."

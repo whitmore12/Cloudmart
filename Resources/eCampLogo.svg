@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 550 330" role="img" aria-labelledby="title description">
+  <title id="title">eCamp</title>
+  <desc id="description">A marketplace for your campus</desc>
+  <rect width="550" height="330" fill="#f4f0e6"/>
+  <g transform="translate(0 0)">
+    <path d="M264 72c0-18 10-29 22-29s22 11 22 29" fill="none" stroke="#1c2340" stroke-width="6"/>
+    <path d="m244 36 41-15 42 15-42 15z" fill="#1c2340"/>
+    <circle cx="285" cy="36" r="5" fill="#f3aa27"/>
+    <path d="m285 36 27 27" fill="none" stroke="#f3aa27" stroke-width="3"/>
+    <circle cx="313" cy="64" r="4" fill="#f3aa27"/>
+    <path d="M247 71h76a15 15 0 0 1 15 15v43a16 16 0 0 1-16 16h-74a16 16 0 0 1-16-16V87a16 16 0 0 1 15-16z" fill="#f4512b"/>
+    <path d="M232 107h106" stroke="#d93f23" stroke-width="2"/>
+  </g>
+  <text x="275" y="251" fill="#1c2340" font-family="Arial, Helvetica, sans-serif" font-size="80" font-weight="700" text-anchor="middle" letter-spacing="-3">eCamp</text>
+  <text x="275" y="303" fill="#716b5e" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" text-anchor="middle" letter-spacing="6.1">A MARKETPLACE FOR YOUR CAMPUS</text>
+</svg>
