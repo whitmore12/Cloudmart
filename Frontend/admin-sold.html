@@ -44,7 +44,7 @@
   </div>
 
   <script>
-    const API = "http://localhost:5001";
+    const API = window.location.origin;
     const user = JSON.parse(localStorage.getItem("user") || "null");
 
     if (!user || user.role !== "admin") {
