@@ -99,6 +99,12 @@
       border-top: 1px solid #1e2438;
       padding-top: 15px;
     }
+    .admin-signin-link {
+      display: block;
+      margin-top: 14px;
+      color: #ccd6f6;
+      text-decoration: none;
+    }
     .msg { margin-top: 15px; font-size: 13px; text-align: center; min-height: 20px; }
     .msg.error { color: #ff6b6b; }
     .msg.success { color: #4ade80; }
@@ -132,7 +138,8 @@
 
       <div class="row">
         <a href="#" id="toggleMode">Need an account? Create one</a>
-        <a href="admin-create.html" class="admin-link">Create Admin Account</a>
+        <a href="#" id="adminSignInLink" class="admin-signin-link">Admin sign in</a>
+        <a href="admin-create.html" class="admin-link">Create another admin account</a>
       </div>
 
       <div id="message" class="msg"></div>
@@ -145,6 +152,7 @@
     const modeTitle = document.getElementById("modeTitle");
     const modeSub = document.getElementById("modeSub");
     const toggleMode = document.getElementById("toggleMode");
+    const adminSignInLink = document.getElementById("adminSignInLink");
     const primaryBtn = document.getElementById("primaryBtn");
     const passwordInput = document.getElementById("password");
     const message = document.getElementById("message");
@@ -165,6 +173,13 @@
       toggleMode.innerText = isCreateMode ? "Already have an account? Sign in" : "Need an account? Create one";
       passwordInput.minLength = isCreateMode ? 8 : 0;
       passwordInput.autocomplete = isCreateMode ? "new-password" : "current-password";
+    });
+
+    adminSignInLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (isCreateMode) toggleMode.click();
+      document.getElementById("username").focus();
+      setMsg("Sign in with your admin username and password. Admin accounts open the dashboard automatically.", false);
     });
 
     primaryBtn.addEventListener("click", async () => {
