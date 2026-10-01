@@ -359,7 +359,7 @@ function renderListings(data) {
 
       ${
         !isOwner && item.status === "active"
-          ? `<button onclick="markAsSold(${item.id})" class="btn btn-primary full">Buy</button>`
+          ? `<button onclick="addToCart(${item.id})" class="btn btn-primary full">Add to Cart</button>`
           : ""
       }
 
@@ -479,36 +479,7 @@ async function toggleWishlist(listingId, isSaved) {
   }
 }
 
-async function markAsSold(listingId) {
-  if (!user) return alert("Please sign in first.");
 
-  <!--should grab the users id to check that they dont own the list-->
-  const buyerEmail = user.email;
-  const userID = user.id;
-  try {
-    const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: userID,
-        role: user.role,
-        buyer_email: buyerEmail.trim()
-      })
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      alert(data.message || "Listing marked as sold!");
-      await loadListings();
-    } else {
-      alert(data.error || "Failed to mark as sold.");
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Error connecting to server.");
-  }
-}
 
 async function init() {
   await loadWishlist();

@@ -2,5 +2,9 @@ Kwame:
 - Added the CloudMart favicon.
 - Required passwords to be at least 8 characters when creating an account.
 - Fixed the marketplace and profile pages so they connect to the deployed API.
-- Fixed checkout so bought items show up in the buyer's profile.
+- Connected demo checkout to mark items sold and show purchases in the buyer's profile.
 - Found that the RDS_HOST setting was missing in Vercel and identified the database endpoint.
+
+Vaughn Huey:
+- Changed the "Buy" button to "Add to Cart."
+- Moved the mark-as-sold action to checkout.
