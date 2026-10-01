@@ -5,7 +5,7 @@
 A cloud-based campus marketplace for Hampton University students.
 
 # Deployed Link
-https://linktr.ee/CloudMartHU
+https://cloudmart-five.vercel.app/
 
 ## Prerequisites
 
@@ -17,8 +17,7 @@ https://linktr.ee/CloudMartHU
 ### 1. Clone the repository
 
 ```bash
-git clone <https://github.com/NickodemusK/CMFINAL.git>
-cd CMFINAL
+git clone https://github.com/kwam12/Cloudmart.git
 ```
 
 ### 2. Create a virtual environment
