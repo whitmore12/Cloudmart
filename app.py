@@ -43,9 +43,10 @@ def frontend_file(filename):
 SSH_HOST = "3.148.171.237"
 SSH_USER = "ec2-user"
 SSH_KEY_PATH = os.path.join(os.path.dirname(__file__), "Resources", "cloudpair.pem")
-
-RDS_HOST = "ecamp-1.cv4gm4m8scfb.us-east-2.rds.amazonaws.com"
+# RDS Configuration
+RDS_HOST = os.getenv("RDS_HOST")
 RDS_PORT = 5432
+DB_HOST = os.getenv("DB_HOST")
 DB_NAME = "postgres"
 DB_USER = "postgres"
 DB_PASSWORD = "ecamppass123"
@@ -584,17 +585,17 @@ def get_listing_by_id(listing_id):
         return jsonify({"error": "Listing not found"}), 404
 
     return jsonify({
-        "id": r[0],
-    "user_id": r[1],
-    "title": r[2],
-    "price": float(r[3]) if r[3] is not None else 0,
-    "category": r[4],
-    "condition": r[5],
-    "image": r[6],
-    "seller": r[7],
-    "seller_email": r[8],
-    "status": r[9],
-    "buyer_email": r[10]
+        "id": row[0],
+    "user_id": row[1],
+    "title": row[2],
+    "price": float(row[3]) if row[3] is not None else 0,
+    "category": row[4],
+    "condition": row[5],
+    "image": row[6],
+    "seller": row[7],
+    "seller_email": row[8],
+    "status": row[9],
+    "buyer_email": row[10]
     }), 200
 
 
@@ -664,8 +665,8 @@ def mark_listing_sold(listing_id):
         if not row:
             return jsonify({"error": "Listing not found"}), 404
 
-        if user_role != "admin" and int(row[0]) != int(user_id):
-            return jsonify({"error": "Forbidden"}), 403
+        if user_role != "admin" and int(row[0]) == int(user_id):
+            return jsonify({"error": "You cannot buy your own listing"}), 400
 
         current_status = (row[1] or "active").lower()
 
@@ -681,8 +682,6 @@ def mark_listing_sold(listing_id):
         if not buyer_row:
             return jsonify({"error": "Buyer email does not belong to a registered user"}), 400
 
-        if int(buyer_row[0]) == int(user_id):
-            return jsonify({"error": "You cannot mark your own listing as bought by yourself"}), 400
 
         cur.execute("""
             UPDATE listings
