@@ -528,7 +528,6 @@ def get_listings():
             l.condition,
             l.image,
             COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
-            u.email AS seller_email,
             COALESCE(l.status, 'active') AS status,
             l.buyer_email
         FROM listings l
@@ -550,9 +549,8 @@ def get_listings():
     "condition": r[5],
     "image": r[6],
     "seller": r[7],
-    "seller_email": r[8],
-    "status": r[9],
-    "buyer_email": r[10]
+    "status": r[8],
+    "buyer_email": r[9]
     } for r in rows]), 200
 
 
@@ -571,7 +569,6 @@ def get_listing_by_id(listing_id):
             l.condition,
             l.image,
             COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
-            u.email AS seller_email,
             COALESCE(l.status, 'active') AS status,
             l.buyer_email
         FROM listings l
@@ -595,9 +592,8 @@ def get_listing_by_id(listing_id):
     "condition": row[5],
     "image": row[6],
     "seller": row[7],
-    "seller_email": row[8],
-    "status": row[9],
-    "buyer_email": row[10]
+    "status": row[8],
+    "buyer_email": row[9]
     }), 200
 
 
@@ -804,7 +800,7 @@ def get_user_by_username(username):
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, email, username, role, profile_image, created_at
+        SELECT id, username, role, profile_image, created_at
         FROM users
         WHERE LOWER(username) = LOWER(%s)
     """, (username,))
@@ -818,11 +814,10 @@ def get_user_by_username(username):
 
     return jsonify({
         "id": row[0],
-        "email": row[1],
-        "username": row[2],
-        "role": row[3],
-        "profile_image": row[4],
-        "created_at": str(row[5])
+        "username": row[1],
+        "role": row[2],
+        "profile_image": row[3],
+        "created_at": str(row[4])
     }), 200
 
 
@@ -909,7 +904,6 @@ def get_listings_by_seller(username):
             l.condition,
             l.image,
             COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
-            u.email AS seller_email,
             COALESCE(l.status, 'active') AS status,
             l.buyer_email
         FROM listings l
@@ -931,9 +925,8 @@ def get_listings_by_seller(username):
     "condition": r[5],
     "image": r[6],
     "seller": r[7],
-    "seller_email": r[8],
-    "status": r[9],
-    "buyer_email": r[10]
+    "status": r[8],
+    "buyer_email": r[9]
     } for r in rows]), 200
 
 #Nickodemus
@@ -1229,7 +1222,6 @@ def get_wishlist():
     cur.execute("""
         SELECT l.id, l.user_id, l.title, l.price, l.category, l.condition, l.image,
        COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
-       u.email AS seller_email,
        COALESCE(l.status, 'active') AS status,
        l.buyer_email
         FROM wishlist w
@@ -1253,9 +1245,8 @@ def get_wishlist():
     "condition": r[5],
     "image": r[6],
     "seller": r[7],
-    "seller_email": r[8],
-    "status": r[9],
-    "buyer_email": r[10]
+    "status": r[8],
+    "buyer_email": r[9]
     } for r in rows]), 200
 
 

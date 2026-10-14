@@ -218,7 +218,6 @@ function renderWishlist(data) {
           <h3 class="card-title">${item.title}</h3>
           <p class="condition">${item.category} • ${item.condition}</p>
           <p class="seller">Sold by: ${item.seller || 'Unknown'}</p>
-          <p class="seller">Email: ${item.seller_email || 'No email available'}</p>
           <div class="card-actions">
             <button onclick="addToCart(${item.id})" class="btn btn-primary">Add to Cart</button>
             <button onclick="removeFromWishlist(${item.id})" class="btn btn-danger">Remove</button>
