@@ -281,10 +281,11 @@ def create_admin():
 
 
 # Simple brute-force protection: after MAX_LOGIN_ATTEMPTS failed logins,
-# an account is locked out for LOGIN_LOCKOUT_SECONDS. Resets on server restart.
+# an account is locked out, with the lockout getting longer each time:
+# 1 min, then 5, 10, 15 (capped at 15). Resets on server restart.
 _login_attempts = {}
 MAX_LOGIN_ATTEMPTS = 5
-LOGIN_LOCKOUT_SECONDS = 900  # 15 minutes
+LOCKOUT_DURATIONS = [60, 300, 600, 900]  # 1m, 5m, 10m, 15m
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -311,11 +312,13 @@ def login():
     conn.close()
 
     if not user or not bcrypt.checkpw(data["password"].encode(), user[2].encode()):
-        entry = _login_attempts.get(username, {"fails": 0, "locked_until": 0})
+        entry = _login_attempts.get(username, {"fails": 0, "locked_until": 0, "lockouts": 0})
         entry["fails"] += 1
         if entry["fails"] >= MAX_LOGIN_ATTEMPTS:
-            entry["locked_until"] = now + LOGIN_LOCKOUT_SECONDS
+            duration = LOCKOUT_DURATIONS[min(entry.get("lockouts", 0), len(LOCKOUT_DURATIONS) - 1)]
+            entry["locked_until"] = now + duration
             entry["fails"] = 0
+            entry["lockouts"] = entry.get("lockouts", 0) + 1
         _login_attempts[username] = entry
         return jsonify({"error": "Invalid credentials"}), 401
 
