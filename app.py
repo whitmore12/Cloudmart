@@ -8,6 +8,7 @@ import uuid
 import subprocess
 import hmac
 import re
+import time
 from dotenv import load_dotenv
 
                      
@@ -279,9 +280,23 @@ def create_admin():
         conn.close()
 
 
+# Simple brute-force protection: after MAX_LOGIN_ATTEMPTS failed logins,
+# an account is locked out for LOGIN_LOCKOUT_SECONDS. Resets on server restart.
+_login_attempts = {}
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 900  # 15 minutes
+
+
 @app.route("/api/auth/login", methods=["POST"])
 def login():
     data = request.get_json()
+    username = data.get("username") or ""
+
+    # cheap reject before the slow bcrypt check
+    now = time.time()
+    entry = _login_attempts.get(username)
+    if entry and now < entry.get("locked_until", 0):
+        return jsonify({"error": "Too many login attempts. Try again later."}), 429
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -296,8 +311,15 @@ def login():
     conn.close()
 
     if not user or not bcrypt.checkpw(data["password"].encode(), user[2].encode()):
+        entry = _login_attempts.get(username, {"fails": 0, "locked_until": 0})
+        entry["fails"] += 1
+        if entry["fails"] >= MAX_LOGIN_ATTEMPTS:
+            entry["locked_until"] = now + LOGIN_LOCKOUT_SECONDS
+            entry["fails"] = 0
+        _login_attempts[username] = entry
         return jsonify({"error": "Invalid credentials"}), 401
 
+    _login_attempts.pop(username, None)
     return jsonify({
         "user": {
             "id": user[0],
