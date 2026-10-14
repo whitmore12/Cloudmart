@@ -6,14 +6,14 @@
   <title>All Listings</title>
   <style>
     * { box-sizing: border-box; margin:0; padding:0; }
-    body { font-family: system-ui, Arial, sans-serif; background:#0b1020; color:#fff; padding:20px; }
-    .header, .panel { background:#111827; border:1px solid rgba(255,255,255,0.1); border-radius:12px; }
+    body { font-family: system-ui, Arial, sans-serif; background:#f3f0e7; color:#1d233e; padding:20px; }
+    .header, .panel { background:#ffffff; border:1px solid rgba(29,35,62,0.12); border-radius:12px; }
     .header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; margin-bottom:20px; }
     .panel { padding:16px; overflow-x:auto; }
-    .btn { padding:8px 16px; border-radius:8px; border:1px solid white; background:transparent; color:white; cursor:pointer; font-weight:bold; }
+    .btn { padding:8px 16px; border-radius:8px; border:1px solid #e25d3b; background:transparent; color:#e25d3b; cursor:pointer; font-weight:bold; }
     table { width:100%; border-collapse:collapse; min-width:700px; }
-    th, td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; }
-    th { color:#93c5fd; background:rgba(255,255,255,0.03); }
+    th, td { padding:10px 12px; border-bottom:1px solid rgba(29,35,62,0.10); text-align:left; }
+    th { color:#e25d3b; background:rgba(29,35,62,0.05); }
   </style>
   <link rel="icon" type="image/svg+xml" href="/Resources/eCampFavicon.svg">
 </head>
@@ -57,7 +57,7 @@
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(/'/g, "&#1d233e;");
     }
 
     async function loadPage() {

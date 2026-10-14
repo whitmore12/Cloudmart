@@ -6,15 +6,15 @@
 body {
   margin: 0;
   font-family: system-ui, Arial;
-  background: #0b1020;
-  color: #fff;
+  background: #f3f0e7;
+  color: #1d233e;
 }
 
 /* HEADER */
 .site-header {
-  background: #111827;
+  background: #ffffff;
   padding: 12px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(29,35,62,0.12);
 }
 
 .nav {
@@ -49,21 +49,21 @@ body {
 }
 
 .btn-primary {
-  background: #2563eb;
+  background: #e25d3b;
   border: none;
   color: white;
 }
 
 .btn-outline {
-  border: 1px solid white;
+  border: 1px solid #e25d3b;
   background: transparent;
-  color: white;
+  color: #e25d3b;
 }
 
 .seller-btn {
   background: transparent;
   border: none;
-  color: #60a5fa;
+  color: #e25d3b;
   cursor: pointer;
   font-weight: 600;
   padding: 0;
@@ -71,7 +71,7 @@ body {
 }
 
 .seller-btn:hover {
-  color: #93c5fd;
+  color: #c8502f;
 }
 
 .full {
@@ -88,8 +88,8 @@ body {
 /* SIDEBAR */
 .fb-sidebar {
   padding: 20px;
-  background: #111827;
-  border-right: 1px solid rgba(255,255,255,0.1);
+  background: #ffffff;
+  border-right: 1px solid rgba(29,35,62,0.12);
 }
 
 .fb-search {
@@ -98,8 +98,8 @@ body {
   border-radius: 20px;
   border: none;
   margin-bottom: 15px;
-  background: #1f2937;
-  color: white;
+  background: #ece7d6;
+  color: #1d233e;
 }
 
 .fb-section {
@@ -127,7 +127,7 @@ body {
 
 /* CARD */
 .feature-card {
-  background: #111827;
+  background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
   transition: 0.2s;
@@ -153,7 +153,7 @@ body {
 
 .condition {
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: #706b5f;
 }
 
 

@@ -11,14 +11,14 @@
 
     body {
       font-family: system-ui, Arial, sans-serif;
-      background: #0b1020;
-      color: #fff;
+      background: #f3f0e7;
+      color: #1d233e;
       line-height: 1.5;
       padding: 20px;
     }
 
     .site-header {
-      background: #111827;
+      background: #ffffff;
       padding: 12px 20px;
       border-radius: 12px;
       margin-bottom: 20px;
@@ -28,26 +28,26 @@
     }
 
     .muted {
-      color: #9ca3af;
+      color: #706b5f;
       font-size: 0.95rem;
     }
 
     .btn {
       padding: 8px 16px;
       border-radius: 8px;
-      border: 1px solid white;
+      border: 1px solid #1d233e;
       background: transparent;
-      color: white;
+      color: #1d233e;
       cursor: pointer;
       font-weight: bold;
     }
 
     .panel {
-      background: #111827;
+      background: #ffffff;
       border-radius: 12px;
       padding: 16px;
       margin-bottom: 24px;
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(29,35,62,0.12);
       overflow-x: auto;
     }
 
@@ -65,19 +65,19 @@
     th, td {
       text-align: left;
       padding: 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      border-bottom: 1px solid rgba(29,35,62,0.10);
       font-size: 0.95rem;
       vertical-align: top;
     }
 
     th {
-      color: #93c5fd;
+      color: #e25d3b;
       font-weight: 700;
-      background: rgba(255,255,255,0.03);
+      background: rgba(29,35,62,0.05);
     }
 
     tr:hover td {
-      background: rgba(255,255,255,0.03);
+      background: rgba(29,35,62,0.05);
     }
 
     .status {
@@ -138,7 +138,7 @@
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(/'/g, "&#1d233e;");
     }
 
     async function loadReturns() {

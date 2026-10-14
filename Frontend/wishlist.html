@@ -10,13 +10,13 @@
   
 /* RESET */
 * { box-sizing: border-box; margin:0; padding:0; }
-body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #fff; line-height:1.5; min-height: 100vh; }
+body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1d233e; line-height:1.5; min-height: 100vh; }
 
 /* HEADER */
 .site-header {
-  background: #111827;
+  background: #ffffff;
   padding: 12px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(29,35,62,0.12);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -25,7 +25,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
   z-index: 1000;
 }
 
-.brand { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1.2rem; color: white; text-decoration: none; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1.2rem; color: #1d233e; text-decoration: none; }
 .logo { height: 40px; }
 
 .nav-menu { display: flex; gap: 10px; align-items: center; }
@@ -33,9 +33,9 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 /* BUTTONS */
 .btn { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; transition:0.2s; }
 .btn:hover { opacity: 0.85; }
-.btn-primary { background: #2563eb; border: none; color: white; }
+.btn-primary { background: #e25d3b; border: none; color: white; }
 .btn-secondary { background: #10b981; border: none; color: white; }
-.btn-outline { border: 1px solid white; background: transparent; color: white; }
+.btn-outline { border: 1px solid #e25d3b; background: transparent; color: #e25d3b; }
 .btn-danger { background: #ef4444; border: none; color: white; }
 .full { width: 100%; }
 
@@ -70,20 +70,20 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 
 /* CARD */
 .wishlist-card {
-  background: #111827;
+  background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
 }
-.wishlist-card:hover { transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.wishlist-card:hover { transform: scale(1.02); box-shadow: 0 4px 12px rgba(29,35,62,0.18); }
 .product-img { width: 100%; height: 180px; object-fit: cover; }
 .card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .price { font-weight: bold; font-size: 1.1rem; color: #10b981; }
 .card-title { font-size: 1rem; }
-.condition { font-size: 0.85rem; color: #9ca3af; }
-.seller { font-size: 0.8rem; color: #6b7280; }
+.condition { font-size: 0.85rem; color: #706b5f; }
+.seller { font-size: 0.8rem; color: #706b5f; }
 
 .card-actions {
   display: flex;
@@ -101,13 +101,13 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #9ca3af;
+  color: #706b5f;
 }
 
 .empty-state h2 {
   font-size: 1.5rem;
   margin-bottom: 10px;
-  color: #fff;
+  color: #1d233e;
 }
 
 .empty-state p {
