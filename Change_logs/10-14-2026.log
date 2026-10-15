@@ -1,0 +1,3 @@
+Vaughn huey:
+- moved RDS and SSH variables to the env
+- commented commands for the team to query the database

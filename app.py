@@ -41,16 +41,16 @@ def frontend_file(filename):
     return send_from_directory("Frontend", filename)
 
 # Database & Tunnel Configuration
-SSH_HOST = "3.148.171.237"
-SSH_USER = "ec2-user"
-SSH_KEY_PATH = os.path.join(os.path.dirname(__file__), "Resources", "cloudpair.pem")
+SSH_HOST = os.getenv("SSH_HOST")
+SSH_USER = os.getenv("SSH_USER")
+SSH_KEY_PATH = os.getenv("SSH_KEY_PATH")
 # RDS Configuration
 RDS_HOST = os.getenv("RDS_HOST")
 RDS_PORT = 5432
 DB_HOST = os.getenv("DB_HOST")
-DB_NAME = "postgres"
-DB_USER = "postgres"
-DB_PASSWORD = "ecamppass123"
+DB_NAME = os.getenv("DB_NAME")
+DB_USER =os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 tunnel = None
 
