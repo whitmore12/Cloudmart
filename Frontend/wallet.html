@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wallet - eCamp</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family: system-ui, Arial, sans-serif; background:#f3f0e7; color:#1d233e; }
+.site-header { background:#fff; padding:12px 20px; border-bottom:1px solid rgba(29,35,62,.12); display:flex; justify-content:space-between; align-items:center; }
+.brand { display:flex; align-items:center; gap:10px; font-weight:bold; font-size:1.2rem; color:#1d233e; text-decoration:none; }
+.logo { height:40px; }
+.nav-menu { display:flex; gap:10px; align-items:center; }
+.btn { padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:bold; border:none; }
+.btn-primary { background:#e25d3b; color:#fff; }
+.btn-outline { border:1px solid #e25d3b; background:transparent; color:#e25d3b; }
+.main { max-width:600px; margin:0 auto; padding:30px 20px; }
+.card { background:#fff; border-radius:12px; padding:24px; box-shadow:0 1px 3px rgba(29,35,62,.08); }
+.balance { text-align:center; padding:20px; background:linear-gradient(135deg,#e25d3b,#c8502f); color:#fff; border-radius:12px; margin-bottom:24px; }
+.balance-label { font-size:.9rem; opacity:.9; }
+.balance-amount { font-size:2.5rem; font-weight:bold; }
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; margin-bottom:6px; font-weight:500; }
+.form-group input { width:100%; padding:10px 12px; border:1px solid rgba(29,35,62,.2); border-radius:8px; font-size:1rem; }
+.btn-full { width:100%; margin-top:8px; }
+.muted { color:#706b5f; font-size:.9rem; }
+.error { color:#ef4444; margin-top:8px; }
+.success { color:#065f46; margin-top:8px; }
+.history { max-height:300px; overflow-y:auto; }
+.history-item { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(29,35,62,.08); }
+.history-item:last-child { border-bottom:none; }
+.history-info { display:flex; flex-direction:column; gap:2px; }
+.history-type { font-size:.75rem; font-weight:bold; padding:2px 8px; border-radius:999px; text-transform:uppercase; display:inline-block; width:fit-content; }
+.history-type.transfer { background:#eef2ff; color:#3730a3; }
+.history-type.deposit { background:#ecfdf5; color:#065f46; }
+.history-amount { font-weight:bold; }
+.history-amount.positive { color:#065f46; }
+.history-amount.negative { color:#991b1b; }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html"><img src="/Resources/eCampLogo.svg" class="logo" alt="eCamp" /><span>eCamp</span></a>
+  <div class="nav-menu">
+    <a href="index.html" class="btn btn-outline">← Back</a>
+    <span id="userDisplay" style="margin-right:10px;"></span>
+    <button class="btn btn-outline" onclick="logout()">Sign Out</button>
+  </div>
+</header>
+
+<main class="main">
+  <div class="card">
+    <h2 style="margin-bottom:16px;">Wallet</h2>
+
+    <div class="balance">
+      <div class="balance-label">Your Balance</div>
+      <div class="balance-amount" id="balance">$0.00</div>
+      <div class="balance-label">pirate_dollars</div>
+    </div>
+
+    <div style="margin-bottom:24px;">
+      <h3 style="margin-bottom:12px;">Send Money</h3>
+      <form id="sendForm" onsubmit="sendMoney(event)">
+        <div class="form-group">
+          <label>Recipient Username</label>
+          <input type="text" id="recipient" placeholder="Enter username" required />
+        </div>
+        <div class="form-group">
+          <label>Amount</label>
+          <input type="number" id="amount" placeholder="0.00" step="0.01" min="0.01" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Send</button>
+        <p id="sendMsg" class="muted"></p>
+      </form>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:12px;">Transaction History</h3>
+      <div id="history" class="history">
+        <p class="muted">Loading...</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = window.location.origin;
+const user = JSON.parse(localStorage.getItem("user") || "null");
+const userDisplay = document.getElementById("userDisplay");
+if (user) userDisplay.textContent = "Hi, " + (user.username || "User");
+else window.location.href = "Signin.html";
+
+function logout() { localStorage.clear(); window.location.href = "Signin.html"; }
+
+async function loadBalance() {
+  try {
+    const res = await fetch(`${API}/api/wallet/balance?user_id=${user.id}`);
+    const data = await res.json();
+    if (res.ok) document.getElementById("balance").textContent = "$" + Number(data.balance).toFixed(2);
+  } catch (e) { console.error(e); }
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch(`${API}/api/wallet/history?user_id=${user.id}&limit=20`);
+    const data = await res.json();
+    const el = document.getElementById("history");
+    if (!data.length) { el.innerHTML = '<p class="muted">No transactions yet</p>'; return; }
+    el.innerHTML = data.map(tx => {
+      const outgoing = tx.from_user_id === user.id;
+      return `<div class="history-item">
+        <div class="history-info">
+          <span class="history-type ${tx.type}">${tx.type}</span>
+          <span>${outgoing ? 'Sent to' : 'Received from'} ${outgoing ? tx.to_username : tx.from_username}</span>
+          <span class="muted" style="font-size:.8rem;">${new Date(tx.created_at).toLocaleString()}</span>
+        </div>
+        <span class="history-amount ${outgoing ? 'negative' : 'positive'}">${outgoing ? '-' : '+'}$${Number(tx.amount).toFixed(2)}</span>
+      </div>`;
+    }).join("");
+  } catch (e) { console.error(e); }
+}
+
+async function sendMoney(e) {
+  e.preventDefault();
+  const msg = document.getElementById("sendMsg");
+  const recipient = document.getElementById("recipient").value.trim();
+  const amount = parseFloat(document.getElementById("amount").value);
+  msg.textContent = ""; msg.className = "muted";
+
+  try {
+    const userRes = await fetch(`${API}/api/users/by-username/${encodeURIComponent(recipient)}`);
+    const userData = await userRes.json();
+    if (!userRes.ok || !userData.id) throw new Error("User not found");
+    if (userData.id === user.id) throw new Error("Cannot send to yourself");
+
+    const res = await fetch(`${API}/api/wallet/transfer`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ buyer_id: user.id, seller_id: userData.id, amount })
+    });
+    const data = await res.json();
+    if (data.success) {
+      msg.textContent = "Sent successfully!"; msg.className = "success";
+      document.getElementById("sendForm").reset();
+      loadBalance(); loadHistory();
+    } else throw new Error(data.error || "Transfer failed");
+  } catch (err) { msg.textContent = err.message; msg.className = "error"; }
+}
+
+loadBalance(); loadHistory();
+</script>
+</body>
+</html>

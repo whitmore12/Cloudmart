@@ -191,7 +191,8 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
   <button id="createListingBtn" class="btn btn-primary" style="display: none;" onclick="goToCreatePage()">+ Sell Item</button>
   <button id="wishlistBtn" class="btn btn-outline" style="display: none;" onclick="goToWishlist()">❤️ Wishlist</button>
   <button id="cartBtn" class="btn btn-secondary" style="display: none;" onclick="goToCartPage()">🛒 Cart (<span id="cartCount">0</span>)</button>
-  
+  <button id="walletBtn" class="btn btn-secondary" style="display: none;" onclick="goToWallet()">💰 Wallet (<span id="walletBalance">$0.00</span>)</button>
+ 
   <button id="adminBtn" class="btn btn-outline" onclick="goToAdmin()">📊 Admin</button>
   <button id="userDisplay" class="btn btn-outline" onclick="goToMyListings()"></button>
   <button class="btn btn-outline" onclick="logout()">Sign Out</button>
@@ -242,8 +243,20 @@ if (user) {
   document.getElementById("createListingBtn").style.display = "inline-flex";
   document.getElementById("wishlistBtn").style.display = "inline-flex";
   document.getElementById("cartBtn").style.display = "inline-flex";
+  document.getElementById("walletBtn").style.display = "inline-flex";
+  loadWalletBalance();
 } else {
   window.location.href = "Signin.html";
+}
+
+async function loadWalletBalance() {
+  try {
+    const res = await fetch(`${API}/api/wallet/balance?user_id=${user.id}`);
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById("walletBalance").textContent = "$" + Number(data.balance).toFixed(2);
+    }
+  } catch (e) { console.error(e); }
 }
 
 // Hide admin button if user is not admin
@@ -268,6 +281,7 @@ function updateCartCount() {
 function goToCreatePage() { window.location.href = "create.html"; }
 function goToCartPage() { window.location.href = "cart.html"; }
 function goToWishlist() { window.location.href = "wishlist.html"; }
+function goToWallet() { window.location.href = "wallet.html"; }
 function goToAdmin() { window.location.href = "admin.html"; }
 
 function goToSellerListings(sellerName) {

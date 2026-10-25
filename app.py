@@ -682,16 +682,16 @@ def mark_listing_sold(listing_id):
     cur = conn.cursor()
 
     try:
-        cur.execute("SELECT user_id, COALESCE(status, 'active') FROM listings WHERE id = %s FOR UPDATE", (listing_id,))
+        cur.execute("SELECT user_id, price, COALESCE(status, 'active') FROM listings WHERE id = %s FOR UPDATE", (listing_id,))
         row = cur.fetchone()
 
         if not row:
             return jsonify({"error": "Listing not found"}), 404
 
-        if user_role != "admin" and int(row[0]) == int(user_id):
-            return jsonify({"error": "You cannot buy your own listing"}), 400
+        seller_id, price, current_status = row[0], float(row[1] or 0), (row[2] or "active").lower()
 
-        current_status = (row[1] or "active").lower()
+        if user_role != "admin" and int(seller_id) == int(user_id):
+            return jsonify({"error": "You cannot buy your own listing"}), 400
 
         if current_status == "sold":
             return jsonify({"error": "Listing is already sold"}), 400
@@ -705,7 +705,40 @@ def mark_listing_sold(listing_id):
         if not buyer_row:
             return jsonify({"error": "Buyer email does not belong to a registered user"}), 400
 
+        buyer_id = buyer_row[0]
 
+        # Check buyer has sufficient funds
+        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (buyer_id,))
+        buyer_balance_row = cur.fetchone()
+        if not buyer_balance_row or float(buyer_balance_row[0]) < price:
+            conn.rollback()
+            return jsonify({"error": "Insufficient funds"}), 400
+
+        # Lock seller row
+        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (seller_id,))
+        seller_balance_row = cur.fetchone()
+        if not seller_balance_row:
+            conn.rollback()
+            return jsonify({"error": "Seller not found"}), 404
+
+        # Transfer funds
+        new_buyer_balance = float(buyer_balance_row[0]) - price
+        new_seller_balance = float(seller_balance_row[0]) + price
+
+        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_buyer_balance, buyer_id))
+        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_seller_balance, seller_id))
+
+        # Record transactions
+        cur.execute("""
+            INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+            VALUES (%s, %s, %s, 'purchase')
+        """, (buyer_id, seller_id, price))
+        cur.execute("""
+            INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+            VALUES (%s, %s, %s, 'sale')
+        """, (buyer_id, seller_id, price))
+
+        # Mark listing as sold
         cur.execute("""
             UPDATE listings
             SET status = 'sold',
@@ -1327,6 +1360,48 @@ def remove_from_wishlist(listing_id):
     conn.close()
 
     return jsonify({"success": True}), 200
+
+
+# ========================
+# WALLET
+# ========================
+@app.route("/api/wallet/balance", methods=["GET"])
+def get_wallet_balance():
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+    try:
+        from backend.Wallet import get_balance
+        return jsonify({"balance": get_balance(user_id)}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/wallet/history", methods=["GET"])
+def get_wallet_history():
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+    try:
+        from backend.Wallet import get_transaction_history
+        return jsonify(get_transaction_history(user_id, 50, 0)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/wallet/transfer", methods=["POST"])
+def wallet_transfer():
+    data = request.get_json() or {}
+    try:
+        buyer_id = int(data.get("buyer_id"))
+        seller_id = int(data.get("seller_id"))
+        amount = float(data.get("amount"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid parameters"}), 400
+    try:
+        from backend.Wallet import transfer_money
+        result = transfer_money(buyer_id, seller_id, amount)
+        return jsonify({"success": result == 0, "error": "Insufficient funds" if result else None}), 200 if result == 0 else 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ========================
