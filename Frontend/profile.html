@@ -449,7 +449,7 @@ body {
     <a href="#soldSection" class="btn btn-outline">Sold Listings</a>
     <a href="#deletedSection" class="btn btn-outline">Deleted Listings</a>
     <a href="#boughtSection" class="btn btn-outline" id="boughtNavBtn" style="display:none;">Bought Items</a>
-    <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requests</a>
+    <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requests (Seller)</a>
   </nav>
 
   <section id="activeSection" class="section-block">
@@ -477,9 +477,9 @@ body {
   </section>
 
   <section id="returnsSection" class="section-block" style="display:none;">
-    <h2 class="section-title">Return Requests</h2>
+    <h2 class="section-title">Return Requests (As Seller)</h2>
 
-    <h3 class="subsection-title">Requests</h3>
+    <h3 class="subsection-title">Pending</h3>
     <div id="pendingReturnRequests" class="grid"></div>
     <p id="pendingEmpty" class="empty" style="display:none;">No pending requests.</p>
 
@@ -537,6 +537,10 @@ const returnsSection = document.getElementById("returnsSection");
 const boughtNavBtn = document.getElementById("boughtNavBtn");
 const returnsNavBtn = document.getElementById("returnsNavBtn");
 
+// Debug: Log API URL and user on load
+console.log("API URL:", API);
+console.log("Logged in user:", loggedInUser);
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -575,14 +579,13 @@ function renderAvatar(name, profileImage, size = "large") {
   }
   return `<div class="profile-avatar-fallback">${firstLetter}</div>`;
 }
-
+<!-- Edited by Vaughn -->
 function updateNavVisibility() {
   const ownProfile = isViewingOwnProfile();
 
   if (ownProfile) {
-    // Hidden the bought and returns buttons by setting display to none
-    boughtNavBtn.style.display = "none"; 
-    returnsNavBtn.style.display = "none";
+    boughtNavBtn.style.display = "inline-flex";
+    returnsNavBtn.style.display = "inline-flex";
     editProfileBtn.style.display = "inline-flex";
   } else {
     boughtNavBtn.style.display = "none";
@@ -737,7 +740,8 @@ function editListing(listingId) {
 function renderListingCard(item, options = {}) {
   const {
     isOwnProfile = false,
-    isBoughtItem = false
+    isBoughtItem = false,
+    isSellerView = false
   } = options;
 
   const safeTitle = escapeHtml(item.title);
@@ -754,6 +758,14 @@ function renderListingCard(item, options = {}) {
   let actionButtons = "";
   let extraInfo = "";
 
+  // Context badge
+  let contextBadge = "";
+  if (isBoughtItem) {
+    contextBadge = `<span class="badge" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.35);">As Buyer</span>`;
+  } else if (isSellerView) {
+    contextBadge = `<span class="badge" style="background:rgba(226,93,59,0.15);color:#e25d3b;border:1px solid rgba(226,93,59,0.35);">As Seller</span>`;
+  }
+
   // Modified: Removed the 'Mark as Sold' button logic
   if (!isBoughtItem && isOwnProfile && status === "active") {
     actionButtons = `
@@ -765,26 +777,17 @@ function renderListingCard(item, options = {}) {
   }
 
   
-
+  
   if (isBoughtItem) {
-    if (!returnStatus) {
-      // Modified: Removed the 'Request Return' button logic
-      actionButtons = ""; 
-    } else {
-      extraInfo += `<span class="badge ${escapeHtml(returnStatus)}">Return ${escapeHtml(returnStatus.charAt(0).toUpperCase() + returnStatus.slice(1))}</span>`;
-      if (safeReturnReason) {
-        extraInfo += `<div class="note-box"><p class="meta"><strong>Return Reason:</strong> ${safeReturnReason}</p></div>`;
-      }
-      if (safeSellerNote) {
-        extraInfo += `<div class="note-box"><p class="meta"><strong>Seller Response:</strong> ${safeSellerNote}</p></div>`;
-      }
-      if (item.return_created_at) {
-        extraInfo += `<p class="meta">Requested: ${escapeHtml(formatDate(item.return_created_at))}</p>`;
-      }
-      if (item.return_reviewed_at) {
-        extraInfo += `<p class="meta">Reviewed: ${escapeHtml(formatDate(item.return_reviewed_at))}</p>`;
-      }
-    }
+    // Always show "Request Return" button - buyer can request again after approval/denial
+    // Don't show return status badge on the card (that's in Return Requests section)
+    actionButtons = `
+      <div class="btn-row">
+        <button class="btn btn-warning" onclick="requestReturn(${Number(item.id)})">
+          Request Return
+        </button>
+      </div>
+    `;
   }
 
   let badgeClass = "active";
@@ -806,6 +809,7 @@ function renderListingCard(item, options = {}) {
         <h3>${safeTitle}</h3>
         <p class="meta">${safeCategory} • ${safeCondition}</p>
         <span class="badge ${badgeClass}">${badgeLabel}</span>
+        ${contextBadge}
         ${(!isBoughtItem && isOwnProfile && status === "sold" && safeBuyerEmail) ? `<p class="meta">Buyer: ${safeBuyerEmail}</p>` : ""}
         ${isBoughtItem ? `<p class="meta">Seller: ${escapeHtml(item.seller || "Unknown")}</p>` : ""}
         ${extraInfo}
@@ -815,19 +819,21 @@ function renderListingCard(item, options = {}) {
   `;
 }
 
-function renderReturnRequestCard(item) {
+function renderReturnRequestCard(item, options = {}) {
+  const { isBuyerView = false } = options;
   const safeTitle = escapeHtml(item.title);
   const safeCategory = escapeHtml(item.category);
   const safeCondition = escapeHtml(item.condition);
   const safeImage = escapeHtml(item.image);
   const safeBuyerEmail = escapeHtml(item.buyer_email || "");
+  const safeSeller = escapeHtml(item.seller || "Unknown");
   const safeReason = escapeHtml(item.reason || "");
   const safeSellerNote = escapeHtml(item.seller_note || "");
   const displayPrice = Number(item.price || 0).toFixed(2);
   const status = (item.status || "pending").toLowerCase();
 
   let buttons = "";
-  if (status === "pending") {
+  if (status === "pending" && !isBuyerView) {
     buttons = `
       <div class="btn-row">
         <button class="btn btn-success" onclick="reviewReturnRequest(${Number(item.id)}, 'approve')">Approve</button>
@@ -843,7 +849,7 @@ function renderReturnRequestCard(item) {
         <div class="price">$${displayPrice}</div>
         <h3>${safeTitle}</h3>
         <p class="meta">${safeCategory} • ${safeCondition}</p>
-        <p class="meta"><strong>Buyer:</strong> ${safeBuyerEmail}</p>
+        ${isBuyerView ? `<p class="meta"><strong>Seller:</strong> ${safeSeller}</p>` : `<p class="meta"><strong>Buyer:</strong> ${safeBuyerEmail}</p>`}
         <span class="badge ${status}">${escapeHtml(status.charAt(0).toUpperCase() + status.slice(1))}</span>
         <div class="note-box">
           <p class="meta"><strong>Reason:</strong> ${safeReason}</p>
@@ -875,6 +881,8 @@ async function loadBoughtItems() {
     const boughtItems = await res.json();
 
     const list = Array.isArray(boughtItems) ? boughtItems : [];
+    
+    // Add debug info to each item
     boughtListingsEl.innerHTML = list.map(item => renderListingCard(item, {
       isOwnProfile: false,
       isBoughtItem: true
@@ -936,6 +944,12 @@ async function loadProfile() {
   loggedInUser = JSON.parse(localStorage.getItem("user") || "null");
   updateNavVisibility();
 
+  // If no seller param but user is logged in, redirect to own profile
+  if (!seller && loggedInUser && loggedInUser.username) {
+    window.location.href = `profile.html?seller=${encodeURIComponent(loggedInUser.username)}`;
+    return;
+  }
+
   if (!seller) {
     profileName.innerText = "User Not Found";
     profileSub.innerText = "No seller was provided.";
@@ -991,7 +1005,8 @@ async function loadProfile() {
 
     soldListingsEl.innerHTML = soldListings.map(item => renderListingCard(item, {
       isOwnProfile: isViewingOwnProfile(),
-      isBoughtItem: false
+      isBoughtItem: false,
+      isSellerView: true
     })).join("");
 
     deletedListingsEl.innerHTML = deletedListings.map(item => renderListingCard(item, {
@@ -1023,35 +1038,35 @@ async function markAsSold(listingId) {
     return;
   }
 
-  const buyerEmail = prompt("Enter the buyer's email:");
-  if (!buyerEmail || !buyerEmail.trim()) {
-    return;
-  }
+  // Use custom modal instead of prompt()
+  showPrompt("Enter the buyer's email:", async (buyerEmail) => {
+    if (!buyerEmail || !buyerEmail.trim()) return;
 
-  try {
-    const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: loggedInUser.id,
-        role: loggedInUser.role,
-        buyer_email: buyerEmail.trim()
-      })
-    });
+    try {
+      const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: loggedInUser.id,
+          role: loggedInUser.role,
+          buyer_email: buyerEmail.trim()
+        })
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      alert(data.error || "Failed to mark listing as sold.");
-      return;
+      if (!res.ok) {
+        alert(data.error || "Failed to mark listing as sold.");
+        return;
+      }
+
+      alert("Listing marked as sold.");
+      loadProfile();
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
     }
-
-    alert("Listing marked as sold.");
-    loadProfile();
-  } catch (err) {
-    console.error(err);
-    alert("Error connecting to server.");
-  }
+  });
 }
 
 async function markAsActive(listingId) {
@@ -1118,42 +1133,109 @@ async function deleteListing(listingId) {
   }
 }
 
+// Custom modal to replace prompt() - works in all browser contexts
+function showPrompt(message, callback) {
+  // Remove any existing modal
+  const existing = document.getElementById("customPromptModal");
+  if (existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "customPromptModal";
+  modal.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+    z-index: 10000; font-family: system-ui, Arial, sans-serif;
+  `;
+  modal.innerHTML = `
+    <div style="background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+      <p style="margin: 0 0 16px; font-size: 1rem; color: #1d233e;">${escapeHtml(message)}</p>
+      <textarea id="promptInput" style="width: 100%; min-height: 80px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; resize: vertical; box-sizing: border-box;"></textarea>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+        <button id="promptCancel" class="btn btn-outline" style="padding: 10px 20px;">Cancel</button>
+        <button id="promptConfirm" class="btn btn-primary" style="padding: 10px 20px;">Submit</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const input = modal.querySelector("#promptInput");
+  const confirmBtn = modal.querySelector("#promptConfirm");
+  const cancelBtn = modal.querySelector("#promptCancel");
+
+  input.focus();
+
+  const cleanup = () => {
+    modal.remove();
+  };
+
+  const handleConfirm = () => {
+    const value = input.value.trim();
+    cleanup();
+    callback(value);
+  };
+
+  const handleCancel = () => {
+    cleanup();
+    callback(null);
+  };
+
+  confirmBtn.onclick = handleConfirm;
+  cancelBtn.onclick = handleCancel;
+  modal.onclick = (e) => { if (e.target === modal) handleCancel(); };
+  input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleConfirm(); } };
+}
+
 async function requestReturn(listingId) {
-  if (!loggedInUser || !loggedInUser.id || !loggedInUser.email) {
-    alert("Please sign in first.");
+  console.log("requestReturn called with listingId:", listingId);
+  console.log("loggedInUser:", loggedInUser);
+  
+  if (!loggedInUser) {
+    alert("Please sign in first. (No user in localStorage)");
+    return;
+  }
+  if (!loggedInUser.id) {
+    alert("Please sign in first. (User missing ID)");
+    return;
+  }
+  if (!loggedInUser.email) {
+    alert("Please sign in first. (User missing email)");
     return;
   }
 
-  const reason = prompt("Enter the reason for your return:");
-  if (!reason || !reason.trim()) {
-    return;
-  }
+  // Use custom modal instead of prompt()
+  showPrompt("Enter the reason for your return:", async (reason) => {
+    if (!reason) return; // User cancelled
 
-  try {
-    const res = await fetch(`${API}/api/returns/request`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        listing_id: listingId,
-        buyer_id: loggedInUser.id,
-        buyer_email: loggedInUser.email,
-        reason: reason.trim()
-      })
-    });
+    console.log("Submitting return request:", { listingId, buyer_id: loggedInUser.id, buyer_email: loggedInUser.email, reason });
 
-    const data = await res.json();
+    try {
+      const res = await fetch(`${API}/api/returns/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listing_id: listingId,
+          buyer_id: loggedInUser.id,
+          buyer_email: loggedInUser.email,
+          reason
+        })
+      });
 
-    if (!res.ok) {
-      alert(data.error || "Failed to submit return request.");
-      return;
+      console.log("Response status:", res.status);
+      const data = await res.json();
+      console.log("Response data:", data);
+
+      if (!res.ok) {
+        alert(data.error || `Failed to submit return request (HTTP ${res.status}).`);
+        return;
+      }
+
+      alert("Return request submitted successfully!");
+      loadProfile();
+    } catch (err) {
+      console.error("requestReturn error:", err);
+      alert("Error connecting to server. Check console for details.");
     }
-
-    alert("Return request submitted.");
-    loadProfile();
-  } catch (err) {
-    console.error(err);
-    alert("Error connecting to server.");
-  }
+  });
 }
 
 async function reviewReturnRequest(returnId, action) {
@@ -1163,33 +1245,38 @@ async function reviewReturnRequest(returnId, action) {
   }
 
   const label = action === "approve" ? "approve" : "deny";
-  const sellerNote = prompt(`Optional: enter a note to ${label} this return request:`) || "";
 
-  try {
-    const res = await fetch(`${API}/api/returns/${returnId}/review`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        seller_id: loggedInUser.id,
-        role: loggedInUser.role,
-        action,
-        seller_note: sellerNote.trim()
-      })
-    });
+  // Use custom modal instead of prompt()
+  showPrompt(`Optional: enter a note to ${label} this return request:`, async (sellerNote) => {
+    // sellerNote can be empty string (user clicked submit without typing) or null (cancelled)
+    if (sellerNote === null) return; // User cancelled
 
-    const data = await res.json();
+    try {
+      const res = await fetch(`${API}/api/returns/${returnId}/review`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seller_id: loggedInUser.id,
+          role: loggedInUser.role,
+          action,
+          seller_note: sellerNote.trim()
+        })
+      });
 
-    if (!res.ok) {
-      alert(data.error || `Failed to ${label} return request.`);
-      return;
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || `Failed to ${label} return request.`);
+        return;
+      }
+
+      alert(data.message || `Return request ${label}d.`);
+      loadProfile();
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
     }
-
-    alert(data.message || `Return request ${label}d.`);
-    loadProfile();
-  } catch (err) {
-    console.error(err);
-    alert("Error connecting to server.");
-  }
+  });
 }
 
 loadProfile();

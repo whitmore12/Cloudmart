@@ -668,6 +668,7 @@ def update_listing(listing_id):
         conn.close()
 #Tyson
 
+# Edited By Taj Brown
 @app.route("/api/listings/<int:listing_id>/mark-sold", methods=["PUT"])
 def mark_listing_sold(listing_id):
     data = request.get_json()
@@ -690,9 +691,6 @@ def mark_listing_sold(listing_id):
 
         seller_id, price, current_status = row[0], float(row[1] or 0), (row[2] or "active").lower()
 
-        if user_role != "admin" and int(seller_id) == int(user_id):
-            return jsonify({"error": "You cannot buy your own listing"}), 400
-
         if current_status == "sold":
             return jsonify({"error": "Listing is already sold"}), 400
 
@@ -706,6 +704,12 @@ def mark_listing_sold(listing_id):
             return jsonify({"error": "Buyer email does not belong to a registered user"}), 400
 
         buyer_id = buyer_row[0]
+
+        if int(buyer_id) == int(seller_id):
+            return jsonify({"error": "You cannot buy your own listing."}), 400
+        
+        if user_role != "admin" and int(user_id) not in (int(seller_id), int(buyer_id)):
+            return jsonify({"error": "Not authorized"}), 403
 
         # Check buyer has sufficient funds
         cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (buyer_id,))
@@ -1028,7 +1032,7 @@ def get_bought_items(buyer_email):
             LIMIT 1
         ) rr ON TRUE
         WHERE LOWER(COALESCE(l.buyer_email, '')) = LOWER(%s)
-          AND COALESCE(l.status, 'active') = 'sold'
+           AND COALESCE(l.status, 'active') = 'sold'
         ORDER BY l.id DESC
     """, (buyer_email, buyer_email))
 
@@ -1053,6 +1057,57 @@ def get_bought_items(buyer_email):
         "seller_note": r[13],
         "return_created_at": str(r[14]) if r[14] else None,
         "return_reviewed_at": str(r[15]) if r[15] else None
+    } for r in rows]), 200
+
+
+@app.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
+def get_return_requests_for_buyer(buyer_email):
+    """Get all return requests made by a buyer (for return history)"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            rr.id,
+            rr.listing_id,
+            l.title,
+            l.price,
+            l.category,
+            l.condition,
+            l.image,
+            COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+            rr.buyer_email,
+            rr.reason,
+            rr.status,
+            rr.seller_note,
+            rr.created_at,
+            rr.reviewed_at
+        FROM return_requests rr
+        JOIN listings l ON rr.listing_id = l.id
+        LEFT JOIN users u ON l.user_id = u.id
+        WHERE LOWER(rr.buyer_email) = LOWER(%s)
+        ORDER BY rr.created_at DESC
+    """, (buyer_email,))
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return jsonify([{
+        "id": r[0],
+        "listing_id": r[1],
+        "title": r[2],
+        "price": float(r[3]) if r[3] is not None else 0,
+        "category": r[4],
+        "condition": r[5],
+        "image": r[6],
+        "seller": r[7],
+        "buyer_email": r[8],
+        "reason": r[9],
+        "status": r[10],
+        "seller_note": r[11],
+        "created_at": str(r[12]) if r[12] else None,
+        "reviewed_at": str(r[13]) if r[13] else None
     } for r in rows]), 200
 
 
