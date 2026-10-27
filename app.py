@@ -147,6 +147,11 @@ def init_db():
     """)
 
     cur.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS pirate_dollars NUMERIC DEFAULT 100.00
+    """)
+
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS listings (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
@@ -181,6 +186,17 @@ def init_db():
         listing_id INTEGER REFERENCES listings(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, listing_id)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY,
+        from_user_id INTEGER REFERENCES users(id),
+        to_user_id INTEGER REFERENCES users(id),
+        amount NUMERIC,
+        type VARCHAR(20),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
