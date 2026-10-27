@@ -3,7 +3,7 @@ Name: Erick Constant
 Purpose: To create a wallet feature.
 '''
 
-from app import get_db_connection
+from application import get_db_connection
 
 
 def get_balance(user_id):
