@@ -197,6 +197,22 @@
   </table>
 </section>
 
+<section class="panel">
+  <h2>Action Logs</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Who</th>
+        <th>Action</th>
+        <th>Target</th>
+        <th>When</th>
+      </tr>
+    </thead>
+    <tbody id="actionLogsTable"></tbody>
+  </table>
+</section>
+
 <script>
 const API = window.location.origin;
 const user = JSON.parse(localStorage.getItem("user"));
@@ -281,6 +297,26 @@ async function loadAdminDashboard() {
         <td>${escapeHtml(r.reason)}</td>
         <td>${r.status}</td>
         <td>${r.created_at || ""}</td>
+      </tr>
+    `;
+  });
+  
+  const logs = data.action_logs || [];
+  const actionLogsTable = document.getElementById("actionLogsTable");
+  actionLogsTable.innerHTML = "";
+
+  if (logs.length === 0) {
+    actionLogsTable.innerHTML = "<tr><td colspan='5'>No action logs</td></tr>";
+  }
+
+  logs.forEach(log => {
+    actionLogsTable.innerHTML += `
+      <tr>
+        <td>${log.id}</td>
+        <td>${escapeHtml(log.who)}</td>
+        <td>${escapeHtml(log.action)}</td>
+        <td>${escapeHtml(log.target)}</td>
+        <td>${log.created_at || ""}</td>
       </tr>
     `;
   });
