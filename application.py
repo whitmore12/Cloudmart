@@ -93,7 +93,7 @@ def start_ssh_tunnel():
 
 
 def get_db_connection():
-    global _db_initialized
+    global _db_initialized, _force_reinit
     if USE_SSH_TUNNEL:
         # Local development: use SSH tunnel
         tun = start_ssh_tunnel()
