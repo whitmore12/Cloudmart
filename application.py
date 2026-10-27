@@ -164,6 +164,7 @@ def init_db():
         password_hash TEXT,
         role VARCHAR(20) DEFAULT 'user',
         profile_image TEXT,
+        pirate_dollars NUMERIC DEFAULT 100.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
