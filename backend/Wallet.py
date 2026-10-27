@@ -12,16 +12,14 @@ def get_balance(user_Id):
     '''
     Purpose: Return the balance of the user using SQL.
     '''
-    current_balance = cur.execute(SELECT pirate_dollars FROM users where id = user_Id)
+    current_balance = cur.execute("SELECT pirate_dollars FROM users where id = %i", (user_Id))
     return current_balance
 
 def transfer_money(buyer_Id, seller_Id, cost):
     '''
     Purpose: Transfers the money from one user to another and updates it. Returns 0 for complete, returns 1 for incomplete
     '''
-
-
-    if check_for_sufficent_funds(buyer, cost) == True:
+    if check_for_sufficent_funds(buyer_Id, cost) == True:
         buyer_current_money = get_balance(buyer_Id)
         seller_current_money = get_balance(seller_Id)
         buyer_updated_money = buyer_current_money - cost
@@ -38,7 +36,7 @@ def check_for_sufficent_funds(user_Id, value):
     '''
     Purpose: Check if the user has sufficient funds to make a purchase. Returns True for sufficient and False for insufficient funds.
     '''
-    current_balance = get_balance
+    current_balance = get_balance(user_Id)
     if current_balance < value:
         return True 
     else:
@@ -48,4 +46,4 @@ def update_money(user1, value):
     '''
     Purpose: Update the money of the user in the database.
     '''
-    cur.execute(UPDATE pirate_dollars SET value FROM users WHERE id = user_Id)
+    cur.execute("UPDATE pirate_dollars SET %i FROM users WHERE id = %i", (value, user1))
