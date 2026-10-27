@@ -3,6 +3,10 @@ from flask_cors import CORS
 from sshtunnel import SSHTunnelForwarder
 import psycopg
 import bcrypt
+import secrets
+import hashlib
+from datetime import datetime, timedelta
+from email_config import send_reset_email, APP_BASE_URL
 import os
 import uuid
 import subprocess
@@ -92,6 +96,17 @@ def init_db():
         password_hash TEXT,
         role VARCHAR(20) DEFAULT 'user',
         profile_image TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS password_resets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -337,6 +352,77 @@ def login():
 # ========================
 # S3 UPLOADS - Nick
 # ========================
+
+
+@app.route("/api/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    generic = {"message": "If that email is registered, a reset link has been sent."}
+
+    if not email:
+        return jsonify(generic), 200
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM users WHERE LOWER(email) = %s", (email,))
+        row = cur.fetchone()
+        if row:
+            user_id = row[0]
+            token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            expires_at = datetime.utcnow() + timedelta(minutes=30)
+            cur.execute(
+                "INSERT INTO password_resets (user_id, token_hash, expires_at) "
+                "VALUES (%s, %s, %s)",
+                (user_id, token_hash, expires_at),
+            )
+            conn.commit()
+            link = f"{APP_BASE_URL}/reset-password.html?token={token}"
+            try:
+                send_reset_email(email, link)
+            except Exception as e:
+                app.logger.error(f"Email send failed: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+    return jsonify(generic), 200
+
+
+@app.route("/api/auth/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json() or {}
+    token = data.get("token") or ""
+    new_password = data.get("password") or ""
+
+    if not token or len(new_password) < 8:
+        return jsonify({"error": "Invalid request"}), 400
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT id, user_id, expires_at, used FROM password_resets "
+            "WHERE token_hash = %s FOR UPDATE",
+            (token_hash,),
+        )
+        row = cur.fetchone()
+        if not row or row[3] or row[2] < datetime.utcnow():
+            return jsonify({"error": "Link is invalid or expired"}), 400
+
+        reset_id, user_id = row[0], row[1]
+        password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+        cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (password_hash, user_id))
+        cur.execute("UPDATE password_resets SET used = TRUE WHERE id = %s", (reset_id,))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    return jsonify({"message": "Password updated"}), 200
 
 @app.route("/api/uploads/presign", methods=["POST", "OPTIONS"])
 def generate_presigned_upload_url():
