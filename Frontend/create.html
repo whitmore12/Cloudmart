@@ -90,7 +90,7 @@
     <h2 id="pageTitle">Create Listing</h2>
 
     <input id="title" placeholder="Title" />
-    <input id="price" placeholder="Price" type="number" step="0.01" />
+    <input id="price" placeholder="Price" type="number" step="any" min="0" />
 
     <select id="category">
       <option>Electronics</option>
@@ -110,7 +110,8 @@
   </div>
 
   <script>
-    const API = window.location.origin;
+    // Use CloudFront HTTPS URL for secure API calls
+    const API = "https://d2h2xplm1feih8.cloudfront.net";
 
     const params = new URLSearchParams(window.location.search);
     const editId = params.get("edit");
@@ -177,13 +178,37 @@
       }
 
       const title = document.getElementById("title").value.trim();
-      const price = parseFloat(document.getElementById("price").value);
+      const priceInput = document.getElementById("price").value;
+      const price = parseFloat(priceInput);
       const category = document.getElementById("category").value;
       const condition = document.getElementById("condition").value;
       const imageFile = document.getElementById("image").files[0];
 
-      if (!title || isNaN(price)) {
-        alert("Please enter a valid title and price.");
+      if (!title) {
+        alert("Please enter a title.");
+        return;
+      }
+      
+      // Validate price: must be a valid positive number with at most 2 decimal places
+      if (!priceInput || priceInput.trim() === "") {
+        alert("Please enter a price.");
+        return;
+      }
+      
+      if (isNaN(price)) {
+        alert("Price must be a valid number.");
+        return;
+      }
+      
+      if (price < 0) {
+        alert("Price cannot be negative.");
+        return;
+      }
+      
+      // Check decimal places (max 2)
+      const decimalPlaces = (priceInput.split('.')[1] || '').length;
+      if (decimalPlaces > 2) {
+        alert("Price can have at most 2 decimal places (e.g., 25.99).");
         return;
       }
 

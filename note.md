@@ -10,3 +10,11 @@ BUCKET_NAME=<your-s3-bucket>
 ADMIN_BOOTSTRAP_TOKEN=<secure-token>
 AWS_REGION=us-east-1
 USE_SSH_TUNNEL=false
+
+ https://d2h2xplm1feih8.cloudfront.net
+
+To SQL query:
+
+    eb ssh cloudmart-env
+
+    psql -h cloudmart-db.c47c866kgmgc.us-east-1.rds.amazonaws.com -U ebuser -d campus_marketplace 
