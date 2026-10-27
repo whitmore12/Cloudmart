@@ -26,16 +26,16 @@ from sshtunnel import SSHTunnelForwarder
 import psycopg
  
 # Database & Tunnel Configuration
-SSH_HOST = os.getenv("SSH_HOST")
-SSH_USER = os.getenv("SSH_USER")
-SSH_KEY_PATH = os.getenv("SSH_KEY_PATH")
+SSH_HOST = os.environ.get("SSH_HOST")
+SSH_USER = os.environ.get("SSH_USER")
+SSH_KEY_PATH = os.environ.get("SSH_KEY_PATH")
 # RDS Configuration
-RDS_HOST = os.getenv("RDS_HOST")
+RDS_HOST = os.environ.get("RDS_HOST")
 RDS_PORT = 5432
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER =os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.environ.get("DB_HOST")
+DB_NAME = os.environ.get("DB_NAME")
+DB_USER =os.environ.get("DB_USER")
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
 
 
 # Global tunnel reference
