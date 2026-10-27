@@ -119,10 +119,13 @@ def get_db_connection():
         try:
             cur = conn.cursor()
             cur.execute("SELECT 1 FROM users LIMIT 1")
+            # Also check for pirate_dollars column
+            cur.execute("SELECT pirate_dollars FROM users LIMIT 1")
             cur.close()
             _db_initialized = True
+            _force_reinit = False
         except Exception:
-            # Tables don't exist, initialize them using a separate connection
+            # Tables don't exist or schema incomplete, initialize them using a separate connection
             # to avoid transaction issues
             conn.close()
             try:
