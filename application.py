@@ -118,16 +118,33 @@ def get_db_connection():
             cur.close()
             _db_initialized = True
         except Exception:
-            # Tables don't exist, initialize them
-            cur = conn.cursor()
+            # Tables don't exist, initialize them using a separate connection
+            # to avoid transaction issues
+            conn.close()
             try:
                 init_db()
                 _db_initialized = True
                 print("Database initialized on first connection")
             except Exception as e:
                 print(f"Auto-init failed: {e}")
-            finally:
-                cur.close()
+            # Return a new connection
+            if USE_SSH_TUNNEL:
+                tun = start_ssh_tunnel()
+                return psycopg.connect(
+                    host="127.0.0.1",
+                    port=tun.local_bind_port,
+                    dbname=DB_NAME,
+                    user=DB_USER,
+                    password=DB_PASSWORD
+                )
+            else:
+                return psycopg.connect(
+                    host=DB_HOST,
+                    port=RDS_PORT,
+                    dbname=DB_NAME,
+                    user=DB_USER,
+                    password=DB_PASSWORD
+                )
     
     return conn
 
