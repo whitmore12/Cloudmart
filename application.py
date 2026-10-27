@@ -21,6 +21,7 @@ load_dotenv()
 
 # S3 config
 from s3_config import s3, BUCKET_NAME, AWS_REGION
+from account_requests import initAccountRequests
 
 application = Flask(__name__)
 CORS(application)
@@ -87,14 +88,25 @@ def start_ssh_tunnel():
 
 
 def get_db_connection():
-    tun = start_ssh_tunnel()
-    return psycopg.connect(
-        host="127.0.0.1",
-        port=tun.local_bind_port,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD
-    )
+    if USE_SSH_TUNNEL:
+        # Local development: use SSH tunnel
+        tun = start_ssh_tunnel()
+        return psycopg.connect(
+            host="127.0.0.1",
+            port=tun.local_bind_port,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD
+        )
+    else:
+        # Production (EB) or direct connection: direct connection to RDS
+        return psycopg.connect(
+            host=DB_HOST,
+            port=RDS_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD
+        )
 
 def log_action(who, action, target):
     """Logs an action to the action_logs database table."""
@@ -121,7 +133,7 @@ def remove_profile_image(image_url):
 
 
 # the lambda looks get_db_connection up each time so tests can swap it
-initAccountRequests(application, lambda: get_db_connection(), remove_profile_image, log_action)
+initAccountRequests(application, lambda: get_db_connection(), remove_profile_image)
 
 
 def init_db():
