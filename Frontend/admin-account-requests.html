@@ -1,0 +1,184 @@
+<!-- Makaila Williams: admin page for account deletion requests -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Account Deletion Requests</title>
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: system-ui, Arial, sans-serif; background:#f3f0e7; color:#1d233e; padding:20px; }
+    .header, .panel { background:#ffffff; border:1px solid rgba(29,35,62,0.12); border-radius:12px; }
+    .header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; margin-bottom:20px; }
+    .panel { padding:16px; overflow-x:auto; margin-bottom:20px; }
+    .btn { padding:8px 16px; border-radius:8px; border:1px solid #e25d3b; background:transparent; color:#e25d3b; cursor:pointer; font-weight:bold; }
+    .btn-approve { background:#059669; border-color:#059669; color:#fff; }
+    .btn-deny { background:#ef4444; border-color:#ef4444; color:#fff; }
+    table { width:100%; border-collapse:collapse; min-width:800px; }
+    th, td { padding:10px 12px; border-bottom:1px solid rgba(29,35,62,0.10); text-align:left; vertical-align:top; }
+    th { color:#e25d3b; background:rgba(29,35,62,0.05); }
+    input[type="password"], input[type="text"] { padding:8px 10px; border-radius:8px; border:1px solid rgba(29,35,62,0.25); background:#ece7d6; color:#1d233e; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .hint { color:#706b5f; font-size:0.9rem; margin-top:6px; }
+    .actions { display:flex; gap:6px; flex-direction:column; min-width:200px; }
+    .msg { margin-top:10px; font-weight:600; }
+    .msg.bad { color:#b91c1c; }
+    .msg.good { color:#047857; }
+  </style>
+  <link rel="icon" type="image/svg+xml" href="/Resources/eCampFavicon.svg">
+</head>
+<body>
+  <div class="header">
+    <h1>Account Deletion Requests</h1>
+    <button class="btn" onclick="window.location.href='admin.html'">← Back</button>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <label for="adminPassword"><b>Your admin password</b></label>
+      <input id="adminPassword" type="password" autocomplete="current-password" placeholder="needed to approve" />
+      <label for="statusFilter"><b>Show</b></label>
+      <select id="statusFilter" onchange="loadRequests()">
+        <option value="">All</option>
+        <option value="pending" selected>Pending</option>
+        <option value="approved">Approved</option>
+        <option value="denied">Denied</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <p class="hint">Approving wipes the account for good. It takes their active listings down, clears their name, email and picture, and logs them out for good. Denying needs no password.</p>
+    <p id="message" class="msg"></p>
+  </div>
+
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>User</th>
+          <th>Email</th>
+          <th>Reason</th>
+          <th>Status</th>
+          <th>Asked</th>
+          <th>Reviewed</th>
+          <th>Admin note</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    if (!user || user.role !== "admin") {
+      alert("Access denied.");
+      window.location.href = "Signin.html";
+    }
+
+    const message = document.getElementById("message");
+
+    // escapeHtml: stops anything a user typed from running as html
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // say: shows a short message under the password box
+    function say(text, good) {
+      message.textContent = text;
+      message.className = "msg " + (good ? "good" : "bad");
+    }
+
+    // actionCell: approve and deny buttons, only for pending ones
+    function actionCell(r) {
+      if (r.status !== "pending") return "";
+      return `
+        <div class="actions">
+          <input type="text" id="note-${r.id}" maxlength="500" placeholder="note (optional)" />
+          <button class="btn btn-approve" onclick="reviewRequest(${r.id}, 'approve')">Approve and delete</button>
+          <button class="btn btn-deny" onclick="reviewRequest(${r.id}, 'deny')">Deny</button>
+        </div>`;
+    }
+
+    async function loadRequests() {
+      const status = document.getElementById("statusFilter").value;
+      const url = `${API}/api/admin/account-requests?admin_id=${encodeURIComponent(user.id)}`
+        + (status ? `&status=${status}` : "");
+      const body = document.getElementById("tableBody");
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) {
+          body.innerHTML = "";
+          say(data.error || "Could not load requests.", false);
+          return;
+        }
+        if (data.length === 0) {
+          body.innerHTML = "<tr><td colspan='9'>No requests found.</td></tr>";
+          return;
+        }
+        body.innerHTML = data.map(r => `
+          <tr>
+            <td>${r.id}</td>
+            <td>${escapeHtml(r.username)}</td>
+            <td>${escapeHtml(r.email)}</td>
+            <td>${escapeHtml(r.reason || "")}</td>
+            <td>${escapeHtml(r.status)}</td>
+            <td>${escapeHtml(r.created_at || "")}</td>
+            <td>${escapeHtml(r.reviewed_at || "")}</td>
+            <td>${escapeHtml(r.admin_note || "")}</td>
+            <td>${actionCell(r)}</td>
+          </tr>`).join("");
+      } catch (err) {
+        console.error(err);
+        say("Error connecting to server.", false);
+      }
+    }
+
+    async function reviewRequest(id, action) {
+      const password = document.getElementById("adminPassword").value;
+      if (action === "approve") {
+        if (!password) {
+          say("Type your admin password first.", false);
+          return;
+        }
+        if (!confirm("This deletes the account for good. Continue?")) return;
+      }
+      const noteBox = document.getElementById(`note-${id}`);
+
+      try {
+        const res = await fetch(`${API}/api/admin/account-requests/${id}/review`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            admin_id: user.id,
+            action,
+            admin_password: password,
+            admin_note: noteBox ? noteBox.value.trim() : ""
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          say(data.error || "Could not finish the review.", false);
+          return;
+        }
+        say(data.message || "Done.", true);
+        loadRequests();
+      } catch (err) {
+        console.error(err);
+        say("Error connecting to server.", false);
+      }
+    }
+
+    loadRequests();
+  </script>
+</body>
+</html>

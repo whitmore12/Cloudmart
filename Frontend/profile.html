@@ -491,7 +491,35 @@ body {
     <div id="approvedReturnRequests" class="grid"></div>
     <p id="approvedEmpty" class="empty" style="display:none;">No approved requests.</p>
   </section>
+
+  <!-- account deletion request, only shows on your own profile. Makaila Williams -->
+  <section id="accountSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Delete My Account</h2>
+    <div class="note-box">
+      <p id="deletionStatus" class="helper-text">Loading...</p>
+
+      <div id="deletionForm" style="display:none;">
+        <p class="helper-text">An admin has to approve this. Once they do, your listings come down and your name, email and picture are wiped. This cannot be undone.</p>
+        <div class="form-group" style="margin-top:10px;">
+          <label for="deletionReason">Why are you leaving? (optional)</label>
+          <input id="deletionReason" type="text" maxlength="500" placeholder="Tell the admins why" />
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label for="deletionPassword">Confirm with your password</label>
+          <input id="deletionPassword" type="password" autocomplete="current-password" />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" type="button" onclick="submitDeletionRequest()">Request Account Deletion</button>
+        </div>
+      </div>
+
+      <div id="deletionCancel" class="btn-row" style="display:none;">
+        <button class="btn btn-outline" type="button" onclick="cancelDeletionRequest()">Cancel My Request</button>
+      </div>
+    </div>
+  </section>
 </main>
+
 
 <script>
 const API = window.location.origin;
@@ -1279,7 +1307,99 @@ async function reviewReturnRequest(returnId, action) {
   });
 }
 
+// ---- account deletion request (Makaila Williams) ----
+let myDeletionRequestId = null;
+
+// showDeletionState: fills the delete account box based on the latest request
+async function loadDeletionState() {
+  const section = document.getElementById("accountSection");
+  if (!isViewingOwnProfile()) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "block";
+
+  const statusEl = document.getElementById("deletionStatus");
+  const form = document.getElementById("deletionForm");
+  const cancelRow = document.getElementById("deletionCancel");
+  form.style.display = "none";
+  cancelRow.style.display = "none";
+  myDeletionRequestId = null;
+
+  try {
+    const res = await fetch(`${API}/api/account-requests/mine?user_id=${encodeURIComponent(loggedInUser.id)}`);
+    const data = await res.json();
+    const req = data.request;
+
+    if (req && req.status === "pending") {
+      myDeletionRequestId = req.id;
+      statusEl.textContent = `Your deletion request is waiting for an admin (sent ${formatDate(req.created_at)}).`;
+      cancelRow.style.display = "flex";
+      return;
+    }
+    if (req && req.status === "denied") {
+      statusEl.textContent = "Your last request was denied." + (req.admin_note ? ` Admin note: ${req.admin_note}` : "") + " You can ask again below.";
+    } else {
+      statusEl.textContent = "Want your account gone? Send a request below.";
+    }
+    form.style.display = "block";
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Could not load your request status.";
+  }
+}
+
+async function submitDeletionRequest() {
+  const password = document.getElementById("deletionPassword").value;
+  const reason = document.getElementById("deletionReason").value.trim();
+  if (!password) {
+    alert("Type your password to confirm.");
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/account-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: loggedInUser.id, password, reason })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Could not send the request.");
+      return;
+    }
+    document.getElementById("deletionPassword").value = "";
+    document.getElementById("deletionReason").value = "";
+    alert(data.message || "Request sent.");
+    loadDeletionState();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function cancelDeletionRequest() {
+  if (!myDeletionRequestId) return;
+  if (!confirm("Cancel your deletion request?")) return;
+  try {
+    const res = await fetch(`${API}/api/account-requests/${myDeletionRequestId}/cancel`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: loggedInUser.id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Could not cancel the request.");
+      return;
+    }
+    loadDeletionState();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
 loadProfile();
+loadDeletionState();
 </script>
 </body>
 </html>

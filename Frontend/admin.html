@@ -142,6 +142,12 @@
     <div id="totalReturns" class="metric-value">0</div>
   </button>
 
+  <!-- Makaila Williams -->
+  <button class="metric-btn" onclick="goToAccountRequests()">
+    <h3>Deletion Requests</h3>
+    <div id="pendingDeletions" class="metric-value">0</div>
+  </button>
+
   <button class="metric-btn">
     <h3>Total Value</h3>
     <div id="totalValue" class="metric-value">$0</div>
@@ -228,6 +234,21 @@ function goHome() {
 
 function goToReturnsPage() {
   window.location.href = "admin-returns.html";
+}
+
+function goToAccountRequests() {
+  window.location.href = "admin-account-requests.html";
+}
+
+// shows how many account deletion requests are waiting
+async function loadPendingDeletions() {
+  try {
+    const res = await fetch(`${API}/api/admin/account-requests?admin_id=${encodeURIComponent(user.id)}&status=pending`);
+    const rows = await res.json();
+    document.getElementById("pendingDeletions").innerText = res.ok ? rows.length : "?";
+  } catch (err) {
+    document.getElementById("pendingDeletions").innerText = "?";
+  }
 }
 
 function escapeHtml(str) {
@@ -323,6 +344,7 @@ async function loadAdminDashboard() {
 }
 
 loadAdminDashboard();
+loadPendingDeletions();
 </script>
 
 </body>
