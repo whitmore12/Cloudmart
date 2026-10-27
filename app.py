@@ -24,6 +24,8 @@ from s3_config import s3, BUCKET_NAME, AWS_REGION
 from account_requests import initAccountRequests
 
 app = Flask(__name__)
+# Explicit WSGI alias for Vercel's Python entrypoint detector.
+handler = app
 CORS(app)
 
 
