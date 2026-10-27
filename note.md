@@ -1,0 +1,1 @@
+- add the user is required to uploaded a image for a listing
