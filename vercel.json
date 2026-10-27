@@ -1,17 +1,8 @@
 {
-  "services": {
-    "web": {
-      "root": ".",
-      "entrypoint": "app.py"
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "web"
-      }
+      "destination": "/api"
     }
   ]
 }
