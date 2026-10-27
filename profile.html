@@ -1,0 +1,1463 @@
+<!-- Created by Nickodemus Konde -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>User Profile | CloudMart</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: system-ui, Arial, sans-serif;
+  background: #020b2a;
+  color: white;
+  min-height: 100vh;
+}
+
+.site-header {
+  background: #09152f;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.logo { height: 40px; }
+
+.back-btn {
+  border: 1px solid white;
+  background: transparent;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.back-btn:hover { opacity: 0.85; }
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.hero {
+  background: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 20px;
+}
+
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.hero-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.profile-avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255,255,255,0.15);
+  background: #111827;
+}
+
+.profile-avatar-fallback {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #111827;
+  border: 3px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.hero-text h1 {
+  font-size: 2rem;
+  color: #3b82f6;
+  margin-bottom: 10px;
+}
+
+.hero-text p {
+  color: #d1d5db;
+  font-size: 1rem;
+}
+
+.profile-email {
+  margin-top: 8px;
+  font-size: 0.98rem;
+}
+
+.profile-email a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.profile-email a:hover {
+  text-decoration: underline;
+}
+
+.edit-profile-panel {
+  margin-top: 18px;
+  display: none;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  color: #dbeafe;
+  font-weight: 600;
+}
+
+.form-group input {
+  background: #0f172a;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.form-group input[type="file"] {
+  padding: 8px;
+}
+
+.preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.preview-image {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: #111827;
+}
+
+.preview-fallback {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: #111827;
+  border: 2px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.section-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  background: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.section-nav .btn {
+  flex: 0 0 auto;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-block {
+  scroll-margin-top: 95px;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  margin: 28px 0 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.card {
+  background: #111827;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: #1f2937;
+}
+
+.card-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.price {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.meta {
+  color: #9ca3af;
+  font-size: 0.92rem;
+}
+
+.badge {
+  display: inline-block;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.badge.active {
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  border: 1px solid rgba(74,222,128,0.35);
+}
+
+.badge.sold {
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  border: 1px solid rgba(248,113,113,0.35);
+}
+
+.badge.pending {
+  background: rgba(245,158,11,0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.35);
+}
+
+.badge.approved {
+  background: rgba(59,130,246,0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(96,165,250,0.35);
+}
+
+.badge.denied {
+  background: rgba(168,85,247,0.15);
+  color: #c084fc;
+  border: 1px solid rgba(192,132,252,0.35);
+}
+
+.badge.deleted {
+  background: rgba(107,114,128,0.18);
+  color: #d1d5db;
+  border: 1px solid rgba(209,213,219,0.28);
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  flex: 1;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-secondary {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-outline {
+  background: transparent;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+}
+
+.btn-success {
+  background: #059669;
+  color: white;
+}
+
+.btn-warning {
+  background: #d97706;
+  color: white;
+}
+
+.empty {
+  color: #9ca3af;
+  padding: 10px 2px;
+}
+
+.note-box {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 4px;
+}
+
+.subsection-title {
+  font-size: 1.2rem;
+  margin: 20px 0 12px;
+  color: #dbeafe;
+}
+
+.helper-text {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 850px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .edit-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .grid { grid-template-columns: 1fr; }
+  .site-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+}
+
+.chat-panel {
+  margin-top: 18px;
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.chat-header .btn { flex: 0 0 auto; padding: 8px 12px; }
+
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #0f172a;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.chat-bubble {
+  max-width: 75%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.chat-bubble.mine {
+  align-self: flex-end;
+  background: #2563eb;
+  color: white;
+}
+
+.chat-bubble.theirs {
+  align-self: flex-start;
+  background: #1f2937;
+  color: white;
+}
+
+.chat-time {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+.chat-reply {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.chat-reply textarea {
+  flex: 1;
+  min-height: 60px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: #0f172a;
+  color: white;
+  font: inherit;
+  resize: vertical;
+}
+
+.chat-reply .btn { flex: 0 0 auto; }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">
+    <img src="https://cloudmart-images.s3.us-east-2.amazonaws.com/Logo.png" class="logo" alt="CloudMart Logo">
+    <span>CloudMart</span>
+  </a>
+  <button class="back-btn" onclick="window.location.href='index.html'">← Back to Marketplace</button>
+</header>
+
+<main class="page">
+  <section class="hero">
+    <div class="hero-top">
+      <div class="hero-left">
+        <div id="profileAvatarWrap"></div>
+        <div class="hero-text">
+          <h1 id="profileName">Loading...</h1>
+          <p id="profileSub">Viewing this seller's listings.</p>
+          <p id="profileEmail" class="profile-email"></p>
+        </div>
+      </div>
+
+      <button id="editProfileBtn" class="btn btn-outline" style="display:none;" type="button" onclick="toggleEditProfile()">
+        Edit Profile
+      </button>
+    </div>
+
+    <div id="editProfilePanel" class="edit-profile-panel">
+      <div class="edit-grid">
+        <div class="form-group">
+          <label for="editUsername">Username</label>
+          <input id="editUsername" type="text" maxlength="50" placeholder="Enter new username" />
+        </div>
+
+        <div class="form-group">
+          <label for="editProfileImage">Profile Picture</label>
+          <input id="editProfileImage" type="file" accept="image/*" />
+        </div>
+      </div>
+
+      <div class="preview-wrap">
+        <div id="previewWrap"></div>
+        <span class="helper-text">Preview of your profile picture.</span>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn btn-primary" type="button" onclick="saveProfileChanges()">Save Changes</button>
+        <button class="btn btn-outline" type="button" onclick="toggleEditProfile(false)">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <nav class="section-nav" id="sectionNav">
+    <a href="#activeSection" class="btn btn-outline">Active Listings</a>
+    <a href="#soldSection" class="btn btn-outline">Sold Listings</a>
+    <a href="#deletedSection" class="btn btn-outline">Deleted Listings</a>
+    <a href="#boughtSection" class="btn btn-outline" id="boughtNavBtn" style="display:none;">Bought Items</a>
+    <a href="#messagesSection" class="btn btn-outline" id="messagesNavBtn" style="display:none;">Messages</a>
+    <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requests</a>
+  </nav>
+
+  <section id="activeSection" class="section-block">
+    <h2 class="section-title">Active Listings</h2>
+    <div id="activeListings" class="grid"></div>
+    <p id="activeEmpty" class="empty" style="display:none;">No active listings found.</p>
+  </section>
+
+  <section id="soldSection" class="section-block">
+    <h2 class="section-title">Sold Listings</h2>
+    <div id="soldListings" class="grid"></div>
+    <p id="soldEmpty" class="empty" style="display:none;">No sold listings found.</p>
+  </section>
+
+  <section id="deletedSection" class="section-block">
+    <h2 class="section-title">Deleted Listings</h2>
+    <div id="deletedListings" class="grid"></div>
+    <p id="deletedEmpty" class="empty" style="display:none;">No deleted listings found.</p>
+  </section>
+
+  <section id="boughtSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Bought Items</h2>
+    <div id="boughtListings" class="grid"></div>
+    <p id="boughtEmpty" class="empty" style="display:none;">No purchased items found.</p>
+  </section>
+
+  <section id="messagesSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Messages</h2>
+    <div id="chatList" class="grid"></div>
+    <p id="chatsEmpty" class="empty" style="display:none;">No messages yet.</p>
+
+    <div id="chatPanel" class="chat-panel" style="display:none;">
+      <div class="chat-header">
+        <div>
+          <h3 id="chatTitle">Chat</h3>
+          <p id="chatWith" class="meta"></p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline" type="button" onclick="refreshChat()">Refresh</button>
+          <button class="btn btn-outline" type="button" onclick="closeChat()">Close</button>
+        </div>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-reply">
+        <textarea id="chatReplyInput" maxlength="2000" placeholder="Write a reply..."></textarea>
+        <button class="btn btn-primary" type="button" onclick="sendChatReply()">Send</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="returnsSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Return Requests</h2>
+
+    <h3 class="subsection-title">Requests</h3>
+    <div id="pendingReturnRequests" class="grid"></div>
+    <p id="pendingEmpty" class="empty" style="display:none;">No pending requests.</p>
+
+    <h3 class="subsection-title">Denied</h3>
+    <div id="deniedReturnRequests" class="grid"></div>
+    <p id="deniedEmpty" class="empty" style="display:none;">No denied requests.</p>
+
+    <h3 class="subsection-title">Approved</h3>
+    <div id="approvedReturnRequests" class="grid"></div>
+    <p id="approvedEmpty" class="empty" style="display:none;">No approved requests.</p>
+  </section>
+</main>
+
+<script>
+const API = "http://localhost:5001";
+const DEFAULT_AVATAR = "https://ui-avatars.com/api/?background=0f172a&color=93c5fd&name=";
+
+const params = new URLSearchParams(window.location.search);
+const seller = params.get("seller");
+
+let loggedInUser = JSON.parse(localStorage.getItem("user") || "null");
+let currentProfileData = null;
+let pendingProfileImageUrl = "";
+
+const profileName = document.getElementById("profileName");
+const profileSub = document.getElementById("profileSub");
+const profileEmail = document.getElementById("profileEmail");
+const profileAvatarWrap = document.getElementById("profileAvatarWrap");
+const editProfileBtn = document.getElementById("editProfileBtn");
+const editProfilePanel = document.getElementById("editProfilePanel");
+const editUsername = document.getElementById("editUsername");
+const editProfileImage = document.getElementById("editProfileImage");
+const previewWrap = document.getElementById("previewWrap");
+
+const activeListingsEl = document.getElementById("activeListings");
+const soldListingsEl = document.getElementById("soldListings");
+const deletedListingsEl = document.getElementById("deletedListings");
+const boughtListingsEl = document.getElementById("boughtListings");
+
+const pendingReturnRequestsEl = document.getElementById("pendingReturnRequests");
+const deniedReturnRequestsEl = document.getElementById("deniedReturnRequests");
+const approvedReturnRequestsEl = document.getElementById("approvedReturnRequests");
+
+const activeEmpty = document.getElementById("activeEmpty");
+const soldEmpty = document.getElementById("soldEmpty");
+const deletedEmpty = document.getElementById("deletedEmpty");
+const boughtEmpty = document.getElementById("boughtEmpty");
+
+const pendingEmpty = document.getElementById("pendingEmpty");
+const deniedEmpty = document.getElementById("deniedEmpty");
+const approvedEmpty = document.getElementById("approvedEmpty");
+
+const boughtSection = document.getElementById("boughtSection");
+const returnsSection = document.getElementById("returnsSection");
+const boughtNavBtn = document.getElementById("boughtNavBtn");
+const returnsNavBtn = document.getElementById("returnsNavBtn");
+
+const messagesSection = document.getElementById("messagesSection");
+const messagesNavBtn = document.getElementById("messagesNavBtn");
+const chatListEl = document.getElementById("chatList");
+const chatsEmpty = document.getElementById("chatsEmpty");
+const chatPanel = document.getElementById("chatPanel");
+const chatTitle = document.getElementById("chatTitle");
+const chatWith = document.getElementById("chatWith");
+const chatMessagesEl = document.getElementById("chatMessages");
+const chatReplyInput = document.getElementById("chatReplyInput");
+
+let currentChat = null;
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function isViewingOwnProfile() {
+  if (!loggedInUser || !loggedInUser.username || !seller) return false;
+  return loggedInUser.username.toLowerCase() === seller.toLowerCase();
+}
+
+function formatDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function renderAvatar(name, profileImage, size = "large") {
+  const avatarUrl = profileImage;
+  const safeName = escapeHtml(name || "User");
+  const firstLetter = safeName ? safeName.charAt(0).toUpperCase() : "U";
+
+  if (avatarUrl) {
+    if (size === "small") {
+      return `<img src="${escapeHtml(avatarUrl)}" alt="${safeName}" class="preview-image">`;
+    }
+    return `<img src="${escapeHtml(avatarUrl)}" alt="${safeName}" class="profile-avatar">`;
+  }
+
+  if (size === "small") {
+    return `<div class="preview-fallback">${firstLetter}</div>`;
+  }
+  return `<div class="profile-avatar-fallback">${firstLetter}</div>`;
+}
+
+function updateNavVisibility() {
+  const ownProfile = isViewingOwnProfile();
+
+  if (ownProfile) {
+    // Hidden the bought and returns buttons by setting display to none
+    boughtNavBtn.style.display = "none"; 
+    returnsNavBtn.style.display = "none";
+    editProfileBtn.style.display = "inline-flex";
+  } else {
+    boughtNavBtn.style.display = "none";
+    returnsNavBtn.style.display = "none";
+    editProfileBtn.style.display = "none";
+    editProfilePanel.style.display = "none";
+  }
+}
+
+function toggleEditProfile(forceState = null) {
+  if (!isViewingOwnProfile()) return;
+
+  const shouldOpen = forceState === null
+    ? editProfilePanel.style.display !== "block"
+    : forceState;
+
+  editProfilePanel.style.display = shouldOpen ? "block" : "none";
+
+  if (shouldOpen && currentProfileData) {
+    editUsername.value = currentProfileData.username || "";
+    pendingProfileImageUrl = currentProfileData.profile_image || "";
+    previewWrap.innerHTML = renderAvatar(
+      currentProfileData.username,
+      pendingProfileImageUrl,
+      "small"
+    );
+  }
+
+  if (!shouldOpen) {
+    editProfileImage.value = "";
+  }
+}
+
+function renderProfileHeader(userData) {
+  currentProfileData = userData;
+  profileName.innerText = userData.username;
+  profileAvatarWrap.innerHTML = renderAvatar(userData.username, userData.profile_image);
+
+  if (!isViewingOwnProfile() && userData.email) {
+    profileEmail.innerHTML = `<a href="mailto:${escapeHtml(userData.email)}">${escapeHtml(userData.email)}</a>`;
+    profileEmail.style.display = "block";
+  } else if (isViewingOwnProfile() && userData.email) {
+    profileEmail.innerHTML = `<a href="mailto:${escapeHtml(userData.email)}">${escapeHtml(userData.email)}</a>`;
+    profileEmail.style.display = "block";
+  } else {
+    profileEmail.textContent = "";
+    profileEmail.style.display = "none";
+  }
+}
+
+async function uploadProfileImageIfNeeded() {
+  const file = editProfileImage.files && editProfileImage.files[0];
+
+  if (!file) {
+    return pendingProfileImageUrl || (currentProfileData ? currentProfileData.profile_image : "");
+  }
+
+  const presignRes = await fetch(`${API}/api/uploads/profile-presign`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: file.name,
+      fileType: file.type
+    })
+  });
+
+  const presignData = await presignRes.json();
+
+  if (!presignRes.ok) {
+    throw new Error(presignData.error || "Failed to create upload URL.");
+  }
+
+  const uploadRes = await fetch(presignData.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type
+    },
+    body: file
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error("Failed to upload image to S3.");
+  }
+
+  return presignData.imageUrl;
+}
+
+async function saveProfileChanges() {
+  if (!loggedInUser || !currentProfileData || !isViewingOwnProfile()) {
+    alert("You can only edit your own profile.");
+    return;
+  }
+
+  const newUsername = editUsername.value.trim();
+  if (!newUsername) {
+    alert("Username is required.");
+    return;
+  }
+
+  try {
+    const finalProfileImage = await uploadProfileImageIfNeeded();
+
+    const res = await fetch(`${API}/api/users/${loggedInUser.id}/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role,
+        username: newUsername,
+        profile_image: finalProfileImage || ""
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to update profile.");
+      return;
+    }
+
+    loggedInUser = {
+      ...loggedInUser,
+      username: newUsername,
+      profile_image: finalProfileImage || null
+    };
+
+    localStorage.setItem("user", JSON.stringify(loggedInUser));
+
+    alert("Profile updated successfully.");
+
+    if (seller && seller.toLowerCase() !== newUsername.toLowerCase()) {
+      window.location.href = `profile.html?seller=${encodeURIComponent(newUsername)}`;
+      return;
+    }
+
+    toggleEditProfile(false);
+    await loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Error updating profile.");
+  }
+}
+
+editProfileImage.addEventListener("change", function () {
+  const file = this.files && this.files[0];
+  if (!file) {
+    previewWrap.innerHTML = renderAvatar(
+      currentProfileData?.username || "User",
+      pendingProfileImageUrl || currentProfileData?.profile_image || "",
+      "small"
+    );
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    previewWrap.innerHTML = `<img src="${escapeHtml(e.target.result)}" alt="Preview" class="preview-image">`;
+  };
+  reader.readAsDataURL(file);
+});
+
+function editListing(listingId) {
+  window.location.href = `create.html?edit=${listingId}`;
+}
+
+function renderListingCard(item, options = {}) {
+  const {
+    isOwnProfile = false,
+    isBoughtItem = false
+  } = options;
+
+  const safeTitle = escapeHtml(item.title);
+  const safeCategory = escapeHtml(item.category);
+  const safeCondition = escapeHtml(item.condition);
+  const safeImage = escapeHtml(item.image);
+  const safeBuyerEmail = escapeHtml(item.buyer_email || "");
+  const safeReturnReason = escapeHtml(item.return_reason || "");
+  const safeSellerNote = escapeHtml(item.seller_note || "");
+  const displayPrice = Number(item.price || 0).toFixed(2);
+  const status = (item.status || "active").toLowerCase();
+  const returnStatus = (item.return_status || "").toLowerCase();
+
+  let actionButtons = "";
+  let extraInfo = "";
+
+  // Modified: Removed the 'Mark as Sold' button logic
+  if (!isBoughtItem && isOwnProfile && status === "active") {
+    actionButtons = `
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="editListing(${Number(item.id)})">Edit</button>
+        <button class="btn btn-secondary" onclick="markAsSold(${Number(item.id)})">Mark as Sold</button>
+      </div>
+    `;
+  }
+
+  
+
+  if (isBoughtItem) {
+    if (!returnStatus) {
+      // Modified: Removed the 'Request Return' button logic
+      actionButtons = ""; 
+    } else {
+      extraInfo += `<span class="badge ${escapeHtml(returnStatus)}">Return ${escapeHtml(returnStatus.charAt(0).toUpperCase() + returnStatus.slice(1))}</span>`;
+      if (safeReturnReason) {
+        extraInfo += `<div class="note-box"><p class="meta"><strong>Return Reason:</strong> ${safeReturnReason}</p></div>`;
+      }
+      if (safeSellerNote) {
+        extraInfo += `<div class="note-box"><p class="meta"><strong>Seller Response:</strong> ${safeSellerNote}</p></div>`;
+      }
+      if (item.return_created_at) {
+        extraInfo += `<p class="meta">Requested: ${escapeHtml(formatDate(item.return_created_at))}</p>`;
+      }
+      if (item.return_reviewed_at) {
+        extraInfo += `<p class="meta">Reviewed: ${escapeHtml(formatDate(item.return_reviewed_at))}</p>`;
+      }
+    }
+  }
+
+  let badgeClass = "active";
+  let badgeLabel = "Active";
+
+  if (status === "sold") {
+    badgeClass = "sold";
+    badgeLabel = "Sold";
+  } else if (status === "deleted") {
+    badgeClass = "deleted";
+    badgeLabel = "Deleted";
+  }
+
+  return `
+    <article class="card">
+      <img src="${safeImage}" alt="${safeTitle}">
+      <div class="card-body">
+        <div class="price">$${displayPrice}</div>
+        <h3>${safeTitle}</h3>
+        <p class="meta">${safeCategory} • ${safeCondition}</p>
+        <span class="badge ${badgeClass}">${badgeLabel}</span>
+        ${(!isBoughtItem && isOwnProfile && status === "sold" && safeBuyerEmail) ? `<p class="meta">Buyer: ${safeBuyerEmail}</p>` : ""}
+        ${isBoughtItem ? `<p class="meta">Seller: ${escapeHtml(item.seller || "Unknown")}</p>` : ""}
+        ${extraInfo}
+        ${actionButtons}
+      </div>
+    </article>
+  `;
+}
+
+function renderReturnRequestCard(item) {
+  const safeTitle = escapeHtml(item.title);
+  const safeCategory = escapeHtml(item.category);
+  const safeCondition = escapeHtml(item.condition);
+  const safeImage = escapeHtml(item.image);
+  const safeBuyerEmail = escapeHtml(item.buyer_email || "");
+  const safeReason = escapeHtml(item.reason || "");
+  const safeSellerNote = escapeHtml(item.seller_note || "");
+  const displayPrice = Number(item.price || 0).toFixed(2);
+  const status = (item.status || "pending").toLowerCase();
+
+  let buttons = "";
+  if (status === "pending") {
+    buttons = `
+      <div class="btn-row">
+        <button class="btn btn-success" onclick="reviewReturnRequest(${Number(item.id)}, 'approve')">Approve</button>
+        <button class="btn btn-secondary" onclick="reviewReturnRequest(${Number(item.id)}, 'deny')">Deny</button>
+      </div>
+    `;
+  }
+
+  return `
+    <article class="card">
+      <img src="${safeImage}" alt="${safeTitle}">
+      <div class="card-body">
+        <div class="price">$${displayPrice}</div>
+        <h3>${safeTitle}</h3>
+        <p class="meta">${safeCategory} • ${safeCondition}</p>
+        <p class="meta"><strong>Buyer:</strong> ${safeBuyerEmail}</p>
+        <span class="badge ${status}">${escapeHtml(status.charAt(0).toUpperCase() + status.slice(1))}</span>
+        <div class="note-box">
+          <p class="meta"><strong>Reason:</strong> ${safeReason}</p>
+        </div>
+        <p class="meta">Requested: ${escapeHtml(formatDate(item.created_at))}</p>
+        ${safeSellerNote ? `<div class="note-box"><p class="meta"><strong>Seller Response:</strong> ${safeSellerNote}</p></div>` : ""}
+        ${item.reviewed_at ? `<p class="meta">Reviewed: ${escapeHtml(formatDate(item.reviewed_at))}</p>` : ""}
+        ${buttons}
+      </div>
+    </article>
+  `;
+}
+
+async function loadBoughtItems() {
+  if (!loggedInUser || !loggedInUser.email || !isViewingOwnProfile()) {
+    boughtSection.style.display = "none";
+    boughtNavBtn.style.display = "none";
+    return;
+  }
+
+  boughtSection.style.display = "block";
+  boughtNavBtn.style.display = "inline-flex";
+
+  try {
+    const res = await fetch(`${API}/api/listings/bought/${encodeURIComponent(loggedInUser.email)}`);
+    const boughtItems = await res.json();
+
+    const list = Array.isArray(boughtItems) ? boughtItems : [];
+    boughtListingsEl.innerHTML = list.map(item => renderListingCard(item, {
+      isOwnProfile: false,
+      isBoughtItem: true
+    })).join("");
+
+    boughtEmpty.style.display = list.length ? "none" : "block";
+  } catch (err) {
+    console.error("Error loading bought items:", err);
+    boughtListingsEl.innerHTML = "";
+    boughtEmpty.style.display = "block";
+  }
+}
+
+async function loadSellerReturnRequests() {
+  if (!loggedInUser || !loggedInUser.id || !isViewingOwnProfile()) {
+    returnsSection.style.display = "none";
+    returnsNavBtn.style.display = "none";
+    return;
+  }
+
+  returnsSection.style.display = "block";
+  returnsNavBtn.style.display = "inline-flex";
+
+  try {
+    const res = await fetch(`${API}/api/returns/seller/${loggedInUser.id}`);
+    const requests = await res.json();
+
+    const list = Array.isArray(requests) ? requests : [];
+
+    const pending = list.filter(item => (item.status || "").toLowerCase() === "pending");
+    const denied = list.filter(item => (item.status || "").toLowerCase() === "denied");
+    const approved = list.filter(item => (item.status || "").toLowerCase() === "approved");
+
+    pendingReturnRequestsEl.innerHTML = pending.map(renderReturnRequestCard).join("");
+    deniedReturnRequestsEl.innerHTML = denied.map(renderReturnRequestCard).join("");
+    approvedReturnRequestsEl.innerHTML = approved.map(renderReturnRequestCard).join("");
+
+    pendingEmpty.style.display = pending.length ? "none" : "block";
+    deniedEmpty.style.display = denied.length ? "none" : "block";
+    approvedEmpty.style.display = approved.length ? "none" : "block";
+  } catch (err) {
+    console.error("Error loading return requests:", err);
+    pendingReturnRequestsEl.innerHTML = "";
+    deniedReturnRequestsEl.innerHTML = "";
+    approvedReturnRequestsEl.innerHTML = "";
+    pendingEmpty.style.display = "block";
+    deniedEmpty.style.display = "block";
+    approvedEmpty.style.display = "block";
+  }
+}
+
+// ========================
+// MESSAGES
+// ========================
+function renderChatCard(chat) {
+  const safeTitle = escapeHtml(chat.listing_title);
+  const safeImage = escapeHtml(chat.listing_image);
+  const safeOther = escapeHtml(chat.other_username);
+  const preview = String(chat.last_message || "");
+  const shortPreview = preview.length > 80 ? preview.slice(0, 80) + "..." : preview;
+  const prefix = chat.last_message_from_me ? "You: " : "";
+  const unread = Number(chat.unread_count) || 0;
+
+  return `
+    <article class="card">
+      <img src="${safeImage}" alt="${safeTitle}">
+      <div class="card-body">
+        <h3>${safeTitle}</h3>
+        <p class="meta">With: ${safeOther}</p>
+        <p class="meta">${escapeHtml(prefix + shortPreview)}</p>
+        <p class="meta">${escapeHtml(formatDate(chat.last_message_time))}</p>
+        ${unread > 0 ? `<span class="badge pending">${unread} new</span>` : ""}
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="openChat(${Number(chat.listing_id)}, ${Number(chat.other_user_id)})">Open chat</button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+async function loadChats() {
+  if (!loggedInUser || !loggedInUser.id || !isViewingOwnProfile()) {
+    messagesSection.style.display = "none";
+    messagesNavBtn.style.display = "none";
+    return;
+  }
+
+  messagesSection.style.display = "block";
+  messagesNavBtn.style.display = "inline-flex";
+
+  try {
+    const res = await fetch(`${API}/api/messages/chats?user_id=${loggedInUser.id}`);
+    const chats = await res.json();
+
+    const list = Array.isArray(chats) ? chats : [];
+    chatListEl.innerHTML = list.map(renderChatCard).join("");
+    chatsEmpty.style.display = list.length ? "none" : "block";
+  } catch (err) {
+    console.error("Error loading chats:", err);
+    chatListEl.innerHTML = "";
+    chatsEmpty.style.display = "block";
+  }
+}
+
+async function openChat(listingId, otherUserId) {
+  if (!loggedInUser || !loggedInUser.id) return;
+
+  currentChat = { listingId, otherUserId };
+
+  try {
+    const res = await fetch(
+      `${API}/api/messages/chat?user_id=${loggedInUser.id}&other_user_id=${otherUserId}&listing_id=${listingId}`
+    );
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to open chat.");
+      return;
+    }
+
+    chatTitle.innerText = data.listing.title || "Chat";
+    chatWith.innerText = "Chatting with " + (data.other_user.username || "user");
+
+    chatMessagesEl.innerHTML = data.messages.length
+      ? data.messages.map(m => {
+          const mine = Number(m.sender_id) === Number(loggedInUser.id);
+          return `
+            <div class="chat-bubble ${mine ? "mine" : "theirs"}">
+              ${escapeHtml(m.body)}
+              <span class="chat-time">${escapeHtml(formatDate(m.created_at))}</span>
+            </div>
+          `;
+        }).join("")
+      : "<p class='meta'>No messages yet.</p>";
+
+    chatPanel.style.display = "block";
+    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+
+    // Mark messages sent to me as read, then refresh unread counts
+    await fetch(`${API}/api/messages/read`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        other_user_id: otherUserId,
+        listing_id: listingId
+      })
+    });
+
+    await loadChats();
+  } catch (err) {
+    console.error("Open chat error:", err);
+    alert("Error connecting to server.");
+  }
+}
+
+function refreshChat() {
+  if (currentChat) openChat(currentChat.listingId, currentChat.otherUserId);
+}
+
+function closeChat() {
+  currentChat = null;
+  chatPanel.style.display = "none";
+  chatReplyInput.value = "";
+}
+
+async function sendChatReply() {
+  if (!currentChat || !loggedInUser) return;
+
+  const body = chatReplyInput.value.trim();
+  if (!body) return;
+
+  try {
+    const res = await fetch(`${API}/api/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender_id: loggedInUser.id,
+        receiver_id: currentChat.otherUserId,
+        listing_id: currentChat.listingId,
+        body
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to send message.");
+      return;
+    }
+
+    chatReplyInput.value = "";
+    await openChat(currentChat.listingId, currentChat.otherUserId);
+  } catch (err) {
+    console.error("Send reply error:", err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function loadProfile() {
+  loggedInUser = JSON.parse(localStorage.getItem("user") || "null");
+  updateNavVisibility();
+
+  if (!seller) {
+    profileName.innerText = "User Not Found";
+    profileSub.innerText = "No seller was provided.";
+    profileEmail.textContent = "";
+    profileEmail.style.display = "none";
+    profileAvatarWrap.innerHTML = renderAvatar("User", "", "large");
+    return;
+  }
+
+  try {
+    const userRes = await fetch(`${API}/api/users/by-username/${encodeURIComponent(seller)}`);
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      renderProfileHeader(userData);
+
+      profileSub.innerText = isViewingOwnProfile()
+        ? "These are your active listings, sold listings, deleted listings, purchases, and return requests."
+        : `Viewing ${userData.username}'s active, sold, and deleted listings.`;
+
+      if (isViewingOwnProfile()) {
+        editUsername.value = userData.username || "";
+        pendingProfileImageUrl = userData.profile_image || "";
+        previewWrap.innerHTML = renderAvatar(userData.username, userData.profile_image, "small");
+      }
+    } else {
+      profileName.innerText = "User Not Found";
+      profileSub.innerText = "Viewing this seller's listings.";
+      profileEmail.textContent = "";
+      profileEmail.style.display = "none";
+      profileAvatarWrap.innerHTML = renderAvatar("User", "", "large");
+    }
+
+    const listingsRes = await fetch(`${API}/api/listings/by-seller/${encodeURIComponent(seller)}`);
+    const listings = await listingsRes.json();
+
+    const activeListings = Array.isArray(listings)
+      ? listings.filter(item => (item.status || "active").toLowerCase() === "active")
+      : [];
+
+    const soldListings = Array.isArray(listings)
+      ? listings.filter(item => (item.status || "active").toLowerCase() === "sold")
+      : [];
+
+    const deletedListings = Array.isArray(listings)
+      ? listings.filter(item => (item.status || "active").toLowerCase() === "deleted")
+      : [];
+
+    activeListingsEl.innerHTML = activeListings.map(item => renderListingCard(item, {
+      isOwnProfile: isViewingOwnProfile(),
+      isBoughtItem: false
+    })).join("");
+
+    soldListingsEl.innerHTML = soldListings.map(item => renderListingCard(item, {
+      isOwnProfile: isViewingOwnProfile(),
+      isBoughtItem: false
+    })).join("");
+
+    deletedListingsEl.innerHTML = deletedListings.map(item => renderListingCard(item, {
+      isOwnProfile: isViewingOwnProfile(),
+      isBoughtItem: false
+    })).join("");
+
+    activeEmpty.style.display = activeListings.length ? "none" : "block";
+    soldEmpty.style.display = soldListings.length ? "none" : "block";
+    deletedEmpty.style.display = deletedListings.length ? "none" : "block";
+
+    await loadBoughtItems();
+    await loadChats();
+    await loadSellerReturnRequests();
+  } catch (err) {
+    console.error(err);
+    profileName.innerText = "Error Loading Profile";
+    profileSub.innerText = "Could not load seller information.";
+    profileEmail.textContent = "";
+    profileEmail.style.display = "none";
+    profileAvatarWrap.innerHTML = renderAvatar("User", "", "large");
+  }
+}
+
+async function markAsSold(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  const buyerEmail = prompt("Enter the buyer's email:");
+  if (!buyerEmail || !buyerEmail.trim()) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role,
+        buyer_email: buyerEmail.trim()
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to mark listing as sold.");
+      return;
+    }
+
+    alert("Listing marked as sold.");
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function markAsActive(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}/mark-active`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to move listing back to active.");
+      return;
+    }
+
+    alert("Listing moved back to active.");
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function deleteListing(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  if (!confirm("Are you sure you want to move this listing to deleted?")) return;
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to delete listing.");
+      return;
+    }
+
+    alert(data.message || "Listing moved to deleted.");
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function requestReturn(listingId) {
+  if (!loggedInUser || !loggedInUser.id || !loggedInUser.email) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  const reason = prompt("Enter the reason for your return:");
+  if (!reason || !reason.trim()) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/returns/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        listing_id: listingId,
+        buyer_id: loggedInUser.id,
+        buyer_email: loggedInUser.email,
+        reason: reason.trim()
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to submit return request.");
+      return;
+    }
+
+    alert("Return request submitted.");
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function reviewReturnRequest(returnId, action) {
+  if (!loggedInUser || !loggedInUser.id) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  const label = action === "approve" ? "approve" : "deny";
+  const sellerNote = prompt(`Optional: enter a note to ${label} this return request:`) || "";
+
+  try {
+    const res = await fetch(`${API}/api/returns/${returnId}/review`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        seller_id: loggedInUser.id,
+        role: loggedInUser.role,
+        action,
+        seller_note: sellerNote.trim()
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || `Failed to ${label} return request.`);
+      return;
+    }
+
+    alert(data.message || `Return request ${label}d.`);
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+loadProfile();
+</script>
+</body>
+</html>

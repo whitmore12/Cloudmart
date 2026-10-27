@@ -1,0 +1,593 @@
+<!-- Tyson Satterwhite -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CloudMart Marketplace</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #fff; line-height:1.5; }
+
+.site-header {
+  background: #111827;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: white;
+  text-decoration: none;
+}
+
+.logo { height: 40px; }
+
+.nav-menu {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+}
+.btn:hover { opacity: 0.85; }
+
+.btn-primary { background: #2563eb; border: none; color: white; }
+.btn-secondary { background: #ef4444; border: none; color: white; }
+.btn-outline { border: 1px solid white; background: transparent; color: white; }
+.full { width: 100%; }
+
+.user-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  padding: 0 4px;
+}
+.user-btn:hover {
+  color: #93c5fd;
+}
+
+.fb-layout { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 70px); }
+
+.fb-sidebar {
+  padding: 20px;
+  background: #111827;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.fb-search {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 999px;
+  border: none;
+  background: #1f2937;
+  color: white;
+  outline: none;
+}
+
+.fb-section h4 { margin-bottom: 10px; font-weight: bold; }
+.fb-section label { display: block; margin-bottom: 8px; cursor: pointer; font-size: 0.95rem; }
+
+.fb-content { padding: 20px; overflow-y: auto; }
+.fb-topbar h2 { font-size: 1.5rem; margin-bottom: 15px; }
+
+.fb-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+
+.feature-card {
+  background: #111827;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.feature-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.product-img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: #1f2937;
+}
+
+.card-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.price { font-weight: bold; font-size: 1.1rem; }
+.condition { font-size: 0.85rem; color: #9ca3af; }
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.heart-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+  padding: 0;
+}
+.heart-btn:hover { transform: scale(1.2); }
+.heart-btn.saved { color: #ef4444; }
+
+.seller-btn {
+  background: transparent;
+  color: #93c5fd;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+}
+.seller-btn:hover {
+  color: #bfdbfe;
+}
+
+.muted {
+  color: #9ca3af;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 1200px) {
+  .fb-grid { grid-template-columns: repeat(3,1fr); }
+}
+
+@media (max-width: 900px) {
+  .fb-layout { grid-template-columns: 1fr; }
+  .fb-grid { grid-template-columns: repeat(2,1fr); }
+}
+
+@media (max-width: 600px) {
+  .fb-grid { grid-template-columns: 1fr; }
+  .nav-menu { flex-direction: column; align-items: flex-end; gap: 5px; }
+}
+
+.msg-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.msg-overlay.open { display: flex; }
+.msg-box {
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 20px;
+  width: 100%;
+  max-width: 440px;
+}
+.msg-box h3 { margin-bottom: 4px; }
+.msg-box textarea {
+  width: 100%;
+  min-height: 110px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: #0f172a;
+  color: white;
+  font: inherit;
+  resize: vertical;
+}
+.msg-actions { display: flex; gap: 8px; }
+.msg-actions .btn { flex: 1; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="index.html">
+    <img src="https://cloudmart-images.s3.us-east-2.amazonaws.com/Logo.png" class="logo" alt="CloudMart Logo" />
+    <span>CloudMart</span>
+  </a>
+
+  <div class="nav-menu">
+  <button class="btn btn-primary" style="display: none;" onclick="goToCreatePage()">+ Sell Item</button>
+  <button class="btn btn-outline" style="display: none;" onclick="goToWishlist()">❤️ Wishlist</button>
+  <button class="btn btn-secondary" style="display: none;" onclick="goToCartPage()">🛒 Cart (<span id="cartCount">0</span>)</button>
+  
+  <button id="adminBtn" class="btn btn-outline" onclick="goToAdmin()">📊 Admin</button>
+  <button id="userDisplay" class="btn btn-outline" onclick="goToMyListings()"></button>
+  <button class="btn btn-outline" onclick="logout()">Sign Out</button>
+</div>
+</header>
+
+<main class="fb-layout">
+  <aside class="fb-sidebar">
+    <h2>Marketplace</h2>
+
+    <input
+      type="text"
+      placeholder="Search Marketplace"
+      class="fb-search"
+      id="searchInput"
+      onkeyup="applyFilters()"
+    />
+
+    <div class="fb-section">
+      <h4>Categories</h4>
+      <label><input type="checkbox" value="Electronics"> Electronics</label>
+      <label><input type="checkbox" value="Books"> Books</label>
+      <label><input type="checkbox" value="Furniture"> Furniture</label>
+      <label><input type="checkbox" value="Appliances"> Appliances</label>
+    </div>
+
+    <button class="btn btn-outline full" onclick="applyFilters()">Apply Filters</button>
+    <button class="btn btn-outline full" onclick="clearFilters()">Clear Filters</button>
+  </aside>
+
+  <section class="fb-content">
+    <div class="fb-topbar"><h2>Today's Picks</h2></div>
+    <div id="listings" class="fb-grid"></div>
+  </section>
+</main>
+
+<!-- Message seller popup -->
+<div id="msgOverlay" class="msg-overlay">
+  <div class="msg-box">
+    <h3 id="msgItemTitle">Message seller</h3>
+    <p id="msgSellerName" class="muted"></p>
+    <textarea id="msgBody" maxlength="2000" placeholder="Write your message..."></textarea>
+    <div class="msg-actions">
+      <button class="btn btn-primary" id="msgSendBtn" onclick="sendMessageToSeller()">Send</button>
+      <button class="btn btn-outline" onclick="closeMessageBox()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:5001";
+
+let allListings = [];
+let wishlistItems = [];
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+const user = JSON.parse(localStorage.getItem("user") || "null");
+
+if (user) {
+  const el = document.getElementById("userDisplay");
+  if (el) el.innerText = "Hi, " + (user.username || "User");
+} else {
+  window.location.href = "Signin.html";
+}
+
+// Hide admin button if user is not admin
+if (!user || user.role !== "admin") {
+  const adminBtn = document.getElementById("adminBtn");
+  if (adminBtn) adminBtn.style.display = "none";
+}
+
+function logout() {
+  localStorage.clear();
+  window.location.href = "Signin.html";
+}
+
+updateCartCount();
+
+function updateCartCount() {
+  cart = JSON.parse(localStorage.getItem("cart")) || [];
+  const cartEl = document.getElementById("cartCount");
+  if (cartEl) cartEl.innerText = cart.length;
+}
+
+function goToCreatePage() { window.location.href = "create.html"; }
+function goToCartPage() { window.location.href = "cart.html"; }
+function goToWishlist() { window.location.href = "wishlist.html"; }
+function goToAdmin() { window.location.href = "admin.html"; }
+
+function goToSellerListings(sellerName) {
+  window.location.href = `profile.html?seller=${encodeURIComponent(sellerName)}`;
+}
+
+function goToMyListings() {
+  if (!user || !user.username) return;
+  window.location.href = `profile.html?seller=${encodeURIComponent(user.username)}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function loadListings() {
+  try {
+    const res = await fetch(`${API}/api/listings`);
+    const data = await res.json();
+
+    allListings = Array.isArray(data)
+      ? data.filter(item => {
+          if (!user || user.id == null) return true;
+          return Number(item.user_id) !== Number(user.id);
+        })
+      : [];
+
+    renderListings(allListings);
+  } catch (err) {
+    console.error("Error loading listings:", err);
+    document.getElementById("listings").innerHTML = "<p class='muted'>Unable to load listings right now.</p>";
+  }
+}
+
+async function loadWishlist() {
+  if (!user || user.id == null) return;
+  try {
+    const res = await fetch(`${API}/api/wishlist?user_id=${user.id}`);
+    const data = await res.json();
+    wishlistItems = Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("Wishlist error:", err);
+    wishlistItems = [];
+  }
+}
+
+function renderListings(data) {
+  const container = document.getElementById("listings");
+  container.innerHTML = "";
+    
+  if (!data || data.length === 0) {
+    container.innerHTML = "<p class='muted'>No listings found.</p>";
+    return;
+  }
+
+  data.forEach(item => {
+    const isAdmin = user && user.role === "admin";
+    const isOwner = user && user.id != null && Number(item.user_id) === Number(user.id);
+    const hasPermission = isAdmin || isOwner;
+
+    const isSaved = wishlistItems.some(w => Number(w.id) === Number(item.id));
+
+    const safeTitle = escapeHtml(item.title);
+    const safeCategory = escapeHtml(item.category);
+    const safeCondition = escapeHtml(item.condition);
+    const safeSeller = escapeHtml(item.seller || "");
+    const safeSellerEmail = escapeHtml(item.seller_email || "No email available");
+    const safeImage = escapeHtml(item.image);
+    const displayPrice = Number(item.price) || 0;
+
+    const sellerMarkup = safeSeller
+      ? `<button class="seller-btn" onclick="goToSellerListings('${safeSeller}')">${safeSeller}</button>`
+      : `<span>Unknown</span>`;
+
+    container.innerHTML += `
+  <article class="feature-card">
+    <img src="${safeImage}" class="product-img" alt="${safeTitle}">
+    <div class="card-body">
+      <div class="card-header-row">
+        <p class="price">$${displayPrice.toFixed(2)}</p>
+        </div>
+
+      <h3>${safeTitle}</h3>
+      <p class="condition">${safeCategory} • ${safeCondition}</p>
+      <p class="muted">Seller: ${sellerMarkup}</p>
+      <p class="muted">Email: ${safeSellerEmail}</p>
+
+      ${
+        !isOwner ? `
+          <button onclick="openMessageBox(${Number(item.id)})" class="btn btn-primary full" style="margin-top: 5px;">💬 Message seller</button>
+        ` : ""
+      }
+
+      ${
+        hasPermission ? `
+          <div style="display: flex; gap: 5px; margin-top: 5px;">
+            <button onclick="editListing(${Number(item.id)})" class="btn btn-outline full" style="flex:1;">Edit</button>
+            <button onclick="deleteListing(${Number(item.id)})" class="btn btn-secondary full" style="flex:1;">Delete</button>
+          </div>
+        ` : ""
+      }
+    </div>
+  </article>
+`;
+  });
+}
+
+function addToCart(id) {
+  const item = allListings.find(i => Number(i.id) === Number(id));
+
+  if (!item) return;
+
+  if (item.status !== "active") {
+    return alert("This item has already been sold.");
+  }
+
+  cart.push(item);
+  localStorage.setItem("cart", JSON.stringify(cart));
+  updateCartCount();
+  alert("Added to cart!");
+}
+
+function applyFilters() {
+  const searchQuery = document.getElementById("searchInput").value.toLowerCase().trim();
+  const selectedCategories = Array.from(
+    document.querySelectorAll("input[type=checkbox]:checked")
+  ).map(cb => cb.value);
+
+  let filtered = [...allListings];
+
+  if (searchQuery) {
+    filtered = filtered.filter(item =>
+      (item.title || "").toLowerCase().includes(searchQuery) ||
+      (item.category || "").toLowerCase().includes(searchQuery) ||
+      (item.seller || "").toLowerCase().includes(searchQuery)
+    );
+  }
+
+  if (selectedCategories.length > 0) {
+    filtered = filtered.filter(item =>
+      selectedCategories.includes(item.category)
+    );
+  }
+
+  renderListings(filtered);
+}
+
+function clearFilters() {
+  document.getElementById("searchInput").value = "";
+  document.querySelectorAll("input[type=checkbox]").forEach(cb => cb.checked = false);
+  renderListings(allListings);
+}
+
+function editListing(listingId) {
+  window.location.href = `create.html?edit=${listingId}`;
+}
+
+async function deleteListing(listingId) {
+  if (!confirm("Are you sure you want to delete this listing?")) return;
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user.id,
+        role: user.role
+      })
+    });
+
+    if (res.ok) {
+      alert("Listing deleted.");
+      await loadListings();
+    } else {
+      const data = await res.json();
+      alert(data.error || "Failed to delete listing.");
+    }
+  } catch (err) {
+    console.error("Delete error:", err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function toggleWishlist(listingId, isSaved) {
+  if (!user) return alert("Please log in first.");
+  try {
+    const method = isSaved ? "DELETE" : "POST";
+    const url = isSaved ? `${API}/api/wishlist/${listingId}?user_id=${user.id}` : `${API}/api/wishlist`;
+    const body = isSaved ? null : JSON.stringify({ user_id: user.id, listing_id: listingId });
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body
+    });
+
+    if (res.ok) {
+      await loadWishlist();
+      renderListings(allListings);
+    }
+  } catch (err) {
+    console.error("Wishlist error:", err);
+  }
+}
+
+let messageTarget = null;
+
+function openMessageBox(listingId) {
+  if (!user || user.id == null) return alert("Please sign in first.");
+
+  const item = allListings.find(i => Number(i.id) === Number(listingId));
+  if (!item) return;
+
+  messageTarget = { listingId: Number(item.id), receiverId: Number(item.user_id) };
+
+  document.getElementById("msgItemTitle").innerText = item.title || "Message seller";
+  document.getElementById("msgSellerName").innerText = "To: " + (item.seller || "Seller");
+  document.getElementById("msgBody").value = "";
+  document.getElementById("msgOverlay").classList.add("open");
+  document.getElementById("msgBody").focus();
+}
+
+function closeMessageBox() {
+  document.getElementById("msgOverlay").classList.remove("open");
+  messageTarget = null;
+}
+
+async function sendMessageToSeller() {
+  if (!messageTarget || !user) return;
+
+  const body = document.getElementById("msgBody").value.trim();
+  if (!body) return alert("Please type a message.");
+
+  const sendBtn = document.getElementById("msgSendBtn");
+  sendBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/api/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender_id: user.id,
+        receiver_id: messageTarget.receiverId,
+        listing_id: messageTarget.listingId,
+        body
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to send message.");
+      return;
+    }
+
+    closeMessageBox();
+    alert("Message sent! You can read replies in the Messages section of your profile.");
+  } catch (err) {
+    console.error("Send message error:", err);
+    alert("Error connecting to server.");
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+async function init() {
+  await loadWishlist();
+  await loadListings();
+}
+
+init();
+</script>
+</body>
+</html>
