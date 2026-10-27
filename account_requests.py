@@ -17,20 +17,26 @@ REASON_MAX = 500
 NOTE_MAX = 500
 MAX_TRIES = 5
 LOCK_SECONDS = 300
+#deleting is for leaving, not for dodging. recent activity holds the account for this many days
+HOLD_DAYS = 30
+#how long to wait before asking again, in seconds
+WAITS = {"cancelled": 3600, "denied": 86400}
 #same lock number create_admin uses, so admin changes never run at the same time
 ADMIN_LOCK = 781204926
 
 dbFactory = None
 tableReady = False
 fileRemover = None
+actionLogger = None
 failedTries = {}
 
 #initAccountRequests
 #purpose: app.py calls this once. hands us its db connection and turns the routes on
-def initAccountRequests(app, getConn, removeFile=None):
-    global dbFactory, fileRemover, tableReady
+def initAccountRequests(app, getConn, removeFile=None, logAction=None):
+    global dbFactory, fileRemover, actionLogger, tableReady
     dbFactory = getConn
     fileRemover = removeFile
+    actionLogger = logAction
     tableReady = False
     if "accountRequests" not in app.blueprints:
         app.register_blueprint(accountRequests)
@@ -137,14 +143,37 @@ def getAdminHash(cur, adminId):
 
 #blockers
 #purpose: reasons this account cannot be deleted right now, empty list means good to go
+#deleting is for people who are done with the platform. it should not be a way to dodge a return, a sale or a buyer
 def blockers(cur, userId):
     problems = []
+
+    #any return request still open, no matter how old
     cur.execute("""
         SELECT COUNT(*) FROM return_requests
         WHERE status = 'pending' AND (seller_id = %s OR buyer_id = %s)
     """, (userId, userId))
     if cur.fetchone()[0] > 0:
-        problems.append("This user still has pending return requests. Finish those first.")
+        problems.append("This account has a pending return request. It has to be finished first.")
+
+    #a return request in the last HOLD_DAYS, even a finished one
+    cur.execute("""
+        SELECT COUNT(*) FROM return_requests
+        WHERE (seller_id = %s OR buyer_id = %s) AND status <> 'pending'
+          AND created_at > CURRENT_TIMESTAMP - make_interval(days => %s)
+    """, (userId, userId, HOLD_DAYS))
+    if cur.fetchone()[0] > 0:
+        problems.append("This account had a return request in the last %s days." % HOLD_DAYS)
+
+    #a sale or a purchase in the last HOLD_DAYS. skipped if the transactions table is not there
+    cur.execute("SELECT to_regclass('transactions') IS NOT NULL")
+    if cur.fetchone()[0]:
+        cur.execute("""
+            SELECT COUNT(*) FROM transactions
+            WHERE (from_user_id = %s OR to_user_id = %s)
+              AND created_at > CURRENT_TIMESTAMP - make_interval(days => %s)
+        """, (userId, userId, HOLD_DAYS))
+        if cur.fetchone()[0] > 0:
+            problems.append("This account bought or sold something in the last %s days." % HOLD_DAYS)
 
     cur.execute("SELECT role FROM users WHERE id = %s", (userId,))
     row = cur.fetchone()
@@ -153,6 +182,29 @@ def blockers(cur, userId):
         if cur.fetchone()[0] == 0:
             problems.append("This is the only admin. Make another admin first.")
     return problems
+
+#cooldownLeft
+#purpose: seconds this user still has to wait before asking again, 0 means they can ask
+#stored in the db so a server restart does not reset it
+def cooldownLeft(cur, userId):
+    cur.execute("""
+        SELECT status, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - reviewed_at))
+        FROM account_deletion_requests
+        WHERE user_id = %s
+        ORDER BY id DESC LIMIT 1
+    """, (userId,))
+    row = cur.fetchone()
+    if not row or row[0] not in WAITS or row[1] is None:
+        return 0
+    return max(0, int(WAITS[row[0]] - float(row[1])))
+
+#waitText
+#purpose: turns seconds into something a person can read
+def waitText(seconds):
+    minutes = -(-seconds // 60)
+    if minutes >= 120:
+        return "%s hours" % -(-minutes // 60)
+    return "%s minutes" % max(minutes, 1)
 
 #wipeAccount
 #purpose: removes the personal info for one user and takes their stuff off the marketplace. gives back the old profile picture url so it can be deleted after the commit
@@ -179,6 +231,11 @@ def wipeAccount(cur, userId):
 
     cur.execute("DELETE FROM wishlist WHERE user_id = %s", (userId,))
 
+    #a password reset link sent before the delete must not bring the account back. skipped if the table is not there
+    cur.execute("SELECT to_regclass('password_resets') IS NOT NULL")
+    if cur.fetchone()[0]:
+        cur.execute("UPDATE password_resets SET used = TRUE WHERE user_id = %s", (userId,))
+
     #a real hash of a random password so login just fails with invalid credentials
     junk = bcrypt.hashpw(secrets.token_urlsafe(32).encode(), bcrypt.gensalt()).decode()
     cur.execute("""
@@ -195,6 +252,16 @@ def dropImage(imageUrl):
         return
     try:
         fileRemover(imageUrl)
+    except Exception:
+        pass
+
+#writeLog
+#purpose: adds a line to the team's action log if app.py gave us a logger. never stops the request if it fails
+def writeLog(who, action, target):
+    if actionLogger is None:
+        return
+    try:
+        actionLogger(who, action, target)
     except Exception:
         pass
 
@@ -225,12 +292,23 @@ def createRequest():
             return jsonify({"error": "Wrong password."}), 401
         clearFails(key)
 
+        problems = blockers(cur, userId)
+        if problems:
+            conn.rollback()
+            return jsonify({"error": " ".join(problems)}), 409
+
+        wait = cooldownLeft(cur, userId)
+        if wait:
+            conn.rollback()
+            return jsonify({"error": "You can ask again in %s." % waitText(wait)}), 429
+
         cur.execute("""
             INSERT INTO account_deletion_requests (user_id, reason)
             VALUES (%s, %s) RETURNING id
         """, (userId, reason or None))
         newId = cur.fetchone()[0]
         conn.commit()
+        writeLog("User %s" % userId, "REQUEST_ACCOUNT_DELETION", "User #%s" % userId)
         return jsonify({"success": True, "message": "Deletion request sent to the admins.", "request_id": newId}), 201
     except psycopg.errors.UniqueViolation:
         conn.rollback()
@@ -399,4 +477,5 @@ def reviewRequest(requestId):
 
     #only after the commit, so a failed delete never loses the picture
     dropImage(imageToDrop)
+    writeLog("Admin (ID: %s)" % adminId, "%s_ACCOUNT_DELETION" % action.upper(), "User #%s" % userId)
     return jsonify({"success": True, "message": "Request %s." % newStatus}), 200

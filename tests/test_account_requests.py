@@ -20,13 +20,14 @@ pytestmark = pytest.mark.skipif(not DSN, reason="set CLOUDMART_TEST_DSN to run t
 
 PASSWORD = "password123"
 removedFiles = []
+logged = []
 
 #makeSchema
 #purpose: fresh copy of the tables these routes touch, same shape as init_db in app.py
 def makeSchema(conn):
     cur = conn.cursor()
     cur.execute("""
-        DROP TABLE IF EXISTS account_deletion_requests, wishlist, return_requests, listings, users CASCADE;
+        DROP TABLE IF EXISTS account_deletion_requests, password_resets, transactions, wishlist, return_requests, listings, users CASCADE;
         CREATE TABLE users (
             id SERIAL PRIMARY KEY, email VARCHAR(255) UNIQUE, username VARCHAR(50) UNIQUE,
             password_hash TEXT, role VARCHAR(20) DEFAULT 'user', profile_image TEXT,
@@ -40,7 +41,14 @@ def makeSchema(conn):
         CREATE TABLE return_requests (
             id SERIAL PRIMARY KEY, listing_id INTEGER REFERENCES listings(id),
             seller_id INTEGER REFERENCES users(id), buyer_id INTEGER REFERENCES users(id),
-            buyer_email VARCHAR(255) NOT NULL, reason TEXT NOT NULL, status VARCHAR(20) DEFAULT 'pending');
+            buyer_email VARCHAR(255) NOT NULL, reason TEXT NOT NULL, status VARCHAR(20) DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE password_resets (
+            id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            token_hash TEXT UNIQUE, expires_at TIMESTAMP, used BOOLEAN NOT NULL DEFAULT FALSE);
+        CREATE TABLE transactions (
+            id SERIAL PRIMARY KEY, from_user_id INTEGER REFERENCES users(id), to_user_id INTEGER REFERENCES users(id),
+            amount NUMERIC, type VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     """)
     conn.commit()
     cur.close()
@@ -83,11 +91,18 @@ def client():
     makeSchema(conn)
     conn.close()
     removedFiles.clear()
+    logged.clear()
     ar.failedTries.clear()
     app = Flask(__name__)
     app.config["TESTING"] = True
-    ar.initAccountRequests(app, lambda: psycopg.connect(DSN), removedFiles.append)
+    ar.initAccountRequests(app, lambda: psycopg.connect(DSN), removedFiles.append,
+                           lambda who, action, target: logged.append((who, action, target)))
     return app.test_client()
+
+#backdate
+#purpose: makes a request look older so we do not have to wait for the cooldown
+def backdate(userId, amount):
+    run("UPDATE account_deletion_requests SET reviewed_at = CURRENT_TIMESTAMP - %s::interval WHERE user_id = %s", (amount, userId))
 
 #ask
 #purpose: user sends a deletion request
@@ -129,7 +144,9 @@ def test_mine_shows_latest_and_cancel_works(client):
     assert client.put("/api/account-requests/%s/cancel" % reqId, json={"user_id": other}).status_code == 404
     assert client.put("/api/account-requests/%s/cancel" % reqId, json={"user_id": uid}).status_code == 200
     assert client.get("/api/account-requests/mine?user_id=%s" % uid).get_json()["request"]["status"] == "cancelled"
-    #after a cancel they can ask again
+    #right after a cancel they have to wait, then they can ask again
+    assert ask(client, uid).status_code == 429
+    backdate(uid, "2 hours")
     assert ask(client, uid).status_code == 201
 
 def test_admin_list_blocks_regular_users(client):
@@ -192,15 +209,14 @@ def test_approve_wipes_the_account(client):
 def test_pending_returns_block_deletion(client):
     uid = addUser("mak")
     buyer = addUser("buyer")
-    adm = addUser("boss", "admin")
     run("INSERT INTO listings (user_id, title, price, seller, status, buyer_email) VALUES (%s,'lamp',5,'mak','sold','buyer@my.hamptonu.edu')", (uid,))
     run("INSERT INTO return_requests (listing_id, seller_id, buyer_id, buyer_email, reason) VALUES (1,%s,%s,'buyer@my.hamptonu.edu','broken')", (uid, buyer))
-    reqId = ask(client, uid).get_json()["request_id"]
-    res = review(client, reqId, adm, "approve")
-    assert res.status_code == 409
-    assert "return" in res.get_json()["error"].lower()
-    assert query("SELECT username FROM users WHERE id=%s", (uid,))[0][0] == "mak"
-    assert query("SELECT status FROM account_deletion_requests WHERE id=%s", (reqId,))[0][0] == "pending"
+    #both sides are held, the seller and the buyer
+    for who in (uid, buyer):
+        res = ask(client, who)
+        assert res.status_code == 409
+        assert "return" in res.get_json()["error"].lower()
+    assert query("SELECT COUNT(*) FROM account_deletion_requests")[0][0] == 0
 
 def test_admin_cannot_approve_own_request(client):
     adm = addUser("boss", "admin")
@@ -328,3 +344,155 @@ def test_reason_is_trimmed_and_blank_is_allowed(client):
     uid = addUser("mak")
     assert ask(client, uid, reason="   ").status_code == 201
     assert query("SELECT reason FROM account_deletion_requests")[0][0] is None
+
+
+#holds and cooldowns, deleting is for leaving and not for dodging
+
+def test_recent_finished_return_still_holds(client):
+    uid = addUser("mak")
+    buyer = addUser("buyer")
+    run("INSERT INTO listings (user_id, title, price, seller, status) VALUES (%s,'lamp',5,'mak','active')", (uid,))
+    run("INSERT INTO return_requests (listing_id, seller_id, buyer_id, buyer_email, reason, status) VALUES (1,%s,%s,'b@x','broken','denied')", (uid, buyer))
+    assert ask(client, uid).status_code == 409
+    #old enough, it no longer holds
+    run("UPDATE return_requests SET created_at = CURRENT_TIMESTAMP - interval '31 days'")
+    assert ask(client, uid).status_code == 201
+
+def test_old_pending_return_still_holds(client):
+    uid = addUser("mak")
+    buyer = addUser("buyer")
+    run("INSERT INTO listings (user_id, title, price, seller, status) VALUES (%s,'lamp',5,'mak','sold')", (uid,))
+    run("INSERT INTO return_requests (listing_id, seller_id, buyer_id, buyer_email, reason, created_at) VALUES (1,%s,%s,'b@x','broken', CURRENT_TIMESTAMP - interval '90 days')", (uid, buyer))
+    assert ask(client, uid).status_code == 409
+
+def test_recent_sale_or_purchase_holds(client):
+    seller = addUser("seller")
+    buyer = addUser("buyer")
+    run("INSERT INTO transactions (from_user_id, to_user_id, amount, type) VALUES (%s,%s,5,'sale')", (buyer, seller))
+    for who in (seller, buyer):
+        res = ask(client, who)
+        assert res.status_code == 409
+        assert "bought or sold" in res.get_json()["error"]
+    run("UPDATE transactions SET created_at = CURRENT_TIMESTAMP - interval '31 days'")
+    assert ask(client, seller).status_code == 201
+    assert ask(client, buyer).status_code == 201
+
+def test_someone_with_no_activity_is_not_held(client):
+    uid = addUser("mak")
+    addUser("other")
+    assert ask(client, uid).status_code == 201
+
+def test_hold_is_checked_again_at_approval(client):
+    uid = addUser("mak")
+    other = addUser("other")
+    adm = addUser("boss", "admin")
+    reqId = ask(client, uid).get_json()["request_id"]
+    #they sold something after asking, so the admin cant approve yet
+    run("INSERT INTO transactions (from_user_id, to_user_id, amount, type) VALUES (%s,%s,5,'sale')", (other, uid))
+    res = review(client, reqId, adm, "approve")
+    assert res.status_code == 409
+    assert "bought or sold" in res.get_json()["error"]
+    assert query("SELECT username FROM users WHERE id=%s", (uid,))[0][0] == "mak"
+    assert query("SELECT status FROM account_deletion_requests WHERE id=%s", (reqId,))[0][0] == "pending"
+
+def test_only_admin_cannot_even_ask(client):
+    adm = addUser("boss", "admin")
+    res = ask(client, adm)
+    assert res.status_code == 409
+    assert "only admin" in res.get_json()["error"]
+
+def test_cooldown_after_cancel(client):
+    uid = addUser("mak")
+    reqId = ask(client, uid).get_json()["request_id"]
+    client.put("/api/account-requests/%s/cancel" % reqId, json={"user_id": uid})
+    res = ask(client, uid)
+    assert res.status_code == 429
+    assert "minutes" in res.get_json()["error"]
+    backdate(uid, "59 minutes")
+    assert ask(client, uid).status_code == 429
+    backdate(uid, "61 minutes")
+    assert ask(client, uid).status_code == 201
+
+def test_cooldown_after_deny_is_longer(client):
+    uid = addUser("mak")
+    adm = addUser("boss", "admin")
+    reqId = ask(client, uid).get_json()["request_id"]
+    review(client, reqId, adm, "deny")
+    res = ask(client, uid)
+    assert res.status_code == 429
+    assert "hours" in res.get_json()["error"]
+    backdate(uid, "2 hours")
+    assert ask(client, uid).status_code == 429
+    backdate(uid, "25 hours")
+    assert ask(client, uid).status_code == 201
+
+def test_wrong_password_still_gets_401_during_cooldown(client):
+    uid = addUser("mak")
+    reqId = ask(client, uid).get_json()["request_id"]
+    client.put("/api/account-requests/%s/cancel" % reqId, json={"user_id": uid})
+    #the password is checked first so nobody learns anything without it
+    assert ask(client, uid, password="nope").status_code == 401
+
+def test_waitText():
+    assert ar.waitText(30) == "1 minutes"
+    assert ar.waitText(600) == "10 minutes"
+    assert ar.waitText(3 * 3600) == "3 hours"
+
+
+#things the team added after the first version, password resets and the action log
+
+def test_reset_link_from_before_the_delete_stops_working(client):
+    uid = addUser("mak")
+    other = addUser("other")
+    adm = addUser("boss", "admin")
+    run("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (%s,'abc', CURRENT_TIMESTAMP + interval '30 minutes')", (uid,))
+    run("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (%s,'def', CURRENT_TIMESTAMP + interval '30 minutes')", (other,))
+    reqId = ask(client, uid).get_json()["request_id"]
+    assert review(client, reqId, adm, "approve").status_code == 200
+    used = dict(query("SELECT token_hash, used FROM password_resets"))
+    assert used["abc"] is True
+    #someone elses link is left alone
+    assert used["def"] is False
+
+def test_delete_still_works_if_there_is_no_password_resets_table(client):
+    uid = addUser("mak")
+    adm = addUser("boss", "admin")
+    run("DROP TABLE password_resets")
+    reqId = ask(client, uid).get_json()["request_id"]
+    assert review(client, reqId, adm, "approve").status_code == 200
+    assert query("SELECT role FROM users WHERE id=%s", (uid,))[0][0] == "deleted"
+
+def test_requests_and_decisions_go_in_the_action_log(client):
+    uid = addUser("mak")
+    adm = addUser("boss", "admin")
+    reqId = ask(client, uid).get_json()["request_id"]
+    review(client, reqId, adm, "approve")
+    assert logged == [
+        ("User %s" % uid, "REQUEST_ACCOUNT_DELETION", "User #%s" % uid),
+        ("Admin (ID: %s)" % adm, "APPROVE_ACCOUNT_DELETION", "User #%s" % uid),
+    ]
+
+def test_deny_is_logged_too_and_blocked_attempts_are_not(client):
+    uid = addUser("mak")
+    adm = addUser("boss", "admin")
+    ask(client, uid, password="nope")
+    assert logged == []
+    reqId = ask(client, uid).get_json()["request_id"]
+    review(client, reqId, adm, "deny")
+    assert logged[-1] == ("Admin (ID: %s)" % adm, "DENY_ACCOUNT_DELETION", "User #%s" % uid)
+
+def test_a_broken_logger_does_not_stop_anything(client):
+    uid = addUser("mak")
+    adm = addUser("boss", "admin")
+
+    def boom(who, action, target):
+        raise RuntimeError("log table is gone")
+    ar.actionLogger = boom
+    reqId = ask(client, uid).get_json()["request_id"]
+    assert review(client, reqId, adm, "approve").status_code == 200
+    assert query("SELECT role FROM users WHERE id=%s", (uid,))[0][0] == "deleted"
+
+def test_no_logger_given_is_fine(client):
+    uid = addUser("mak")
+    ar.actionLogger = None
+    assert ask(client, uid).status_code == 201

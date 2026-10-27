@@ -111,7 +111,7 @@ def remove_profile_image(image_url):
 
 
 # the lambda looks get_db_connection up each time so tests can swap it
-initAccountRequests(app, lambda: get_db_connection(), remove_profile_image)
+initAccountRequests(app, lambda: get_db_connection(), remove_profile_image, log_action)
 
 
 def init_db():
