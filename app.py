@@ -79,6 +79,22 @@ def get_db_connection():
         password=DB_PASSWORD
     )
 
+def log_action(who, action, target):
+    """Logs an action to the action_logs database table."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO action_logs (who, action, target)
+            VALUES (%s, %s, %s)
+        """, (str(who), str(action), str(target)))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"Failed to record action log: {e}")
+    finally:
+        cur.close()
+        conn.close()
 
 def init_db():
     conn = get_db_connection()
@@ -162,6 +178,17 @@ def init_db():
     ALTER TABLE return_requests
     ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP
     """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS action_logs 
+    (
+       id SERIAL PRIMARY KEY,
+       who VARCHAR(255) NOT NULL,
+       action VARCHAR(100) NOT NULL,
+       target VARCHAR(255) NOT NULL,
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   )
+       """)
 
     conn.commit()
     cur.close()
@@ -842,6 +869,9 @@ def delete_listing(listing_id):
         """, (listing_id,))
 
         conn.commit()
+
+        actor = f"Admin (ID: {user_id})" if user_role == "admin" else f"User {user_id}"
+        log_action(actor, "DELETE_LISTING", f"Listing #{listing_id}")
         return jsonify({"success": True, "message": "Listing soft deleted"}), 200
 
     except Exception as e:
@@ -1304,6 +1334,9 @@ def review_return_request(return_id):
             """, (listing_id,))
 
         conn.commit()
+      
+        actor = f"Admin (ID: {user_id})" if user_role == "admin" else f"User {user_id}"
+        log_action(actor, "DELETE_LISTING", f"Listing #{listing_id}")
 
         return jsonify({
             "success": True,
@@ -1469,6 +1502,9 @@ def get_admin_dashboard():
     if role != "admin":
         return jsonify({"error": "Forbidden"}), 403
 
+   #  LOG ACTION 
+    log_action("Admin", "VIEW_ADMIN_DASHBOARD", "Admin Dashboard")
+
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -1484,6 +1520,14 @@ def get_admin_dashboard():
 
         cur.execute("SELECT COALESCE(SUM(price), 0) FROM listings")
         total_value = cur.fetchone()[0]
+
+       cur.execute("""
+            SELECT id, who, action, target, created_at
+            FROM action_logs
+            ORDER BY created_at DESC
+            LIMIT 50
+        """)
+        action_log_rows = cur.fetchall()
 
         cur.execute("""
             SELECT id, email, username, role, created_at
@@ -1526,6 +1570,8 @@ def get_admin_dashboard():
             ORDER BY rr.created_at DESC
         """)
         return_request_rows = cur.fetchall()
+
+        
 
         return jsonify({
             "summary": {
@@ -1573,6 +1619,16 @@ def get_admin_dashboard():
                     "reviewed_at": str(r[10]) if r[10] else None
                 }
                 for r in return_request_rows
+            ],
+            "action_logs": [
+                {
+                    "id": r[0],
+                    "who": r[1],
+                    "action": r[2],
+                    "target": r[3],
+                    "created_at": str(r[4]) if r[4] else None
+                }
+                for r in action_log_rows
             ]
         }), 200
 
