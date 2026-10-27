@@ -21,6 +21,7 @@ load_dotenv()
 
 # S3 config
 from s3_config import s3, BUCKET_NAME, AWS_REGION
+from account_requests import initAccountRequests
 
 app = Flask(__name__)
 CORS(app)
@@ -78,6 +79,17 @@ def get_db_connection():
         user=DB_USER,
         password=DB_PASSWORD
     )
+
+
+# Account deletion requests (Makaila)
+def remove_profile_image(image_url):
+    prefix = "/api/profile-images/"
+    if image_url and image_url.startswith(prefix + "profiles/"):
+        s3.delete_object(Bucket=BUCKET_NAME, Key=image_url[len(prefix):])
+
+
+# the lambda looks get_db_connection up each time so tests can swap it
+initAccountRequests(app, lambda: get_db_connection(), remove_profile_image)
 
 
 def init_db():
