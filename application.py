@@ -74,6 +74,7 @@ USE_SSH_TUNNEL = os.environ.get("USE_SSH_TUNNEL", "true").lower() == "true"
 
 
 tunnel = None
+_db_initialized = False
 
 
 def start_ssh_tunnel():
@@ -91,10 +92,11 @@ def start_ssh_tunnel():
 
 
 def get_db_connection():
+    global _db_initialized
     if USE_SSH_TUNNEL:
         # Local development: use SSH tunnel
         tun = start_ssh_tunnel()
-        return psycopg.connect(
+        conn = psycopg.connect(
             host="127.0.0.1",
             port=tun.local_bind_port,
             dbname=DB_NAME,
@@ -103,13 +105,34 @@ def get_db_connection():
         )
     else:
         # Production (EB): direct connection to RDS
-        return psycopg.connect(
+        conn = psycopg.connect(
             host=DB_HOST,
             port=RDS_PORT,
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD
         )
+    
+    # Auto-initialize database on first connection if tables don't exist
+    if not _db_initialized:
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM users LIMIT 1")
+            cur.close()
+            _db_initialized = True
+        except Exception:
+            # Tables don't exist, initialize them
+            cur = conn.cursor()
+            try:
+                init_db()
+                _db_initialized = True
+                print("Database initialized on first connection")
+            except Exception as e:
+                print(f"Auto-init failed: {e}")
+            finally:
+                cur.close()
+    
+    return conn
 
 
 def init_db():
