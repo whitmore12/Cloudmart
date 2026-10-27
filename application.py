@@ -71,6 +71,7 @@ USE_SSH_TUNNEL = os.environ.get("USE_SSH_TUNNEL", "true").lower() == "true"
 
 tunnel = None
 _db_initialized = False
+_db_initialized = False
 
 
 def start_ssh_tunnel():
@@ -88,10 +89,11 @@ def start_ssh_tunnel():
 
 
 def get_db_connection():
+    global _db_initialized
     if USE_SSH_TUNNEL:
         # Local development: use SSH tunnel
         tun = start_ssh_tunnel()
-        return psycopg.connect(
+        conn = psycopg.connect(
             host="127.0.0.1",
             port=tun.local_bind_port,
             dbname=DB_NAME,
@@ -99,41 +101,35 @@ def get_db_connection():
             password=DB_PASSWORD
         )
     else:
-        # Production (EB) or direct connection: direct connection to RDS
-        return psycopg.connect(
+        # Production (EB): direct connection to RDS
+        conn = psycopg.connect(
             host=DB_HOST,
             port=RDS_PORT,
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD
         )
-
-def log_action(who, action, target):
-    """Logs an action to the action_logs database table."""
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT INTO action_logs (who, action, target)
-            VALUES (%s, %s, %s)
-        """, (str(who), str(action), str(target)))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        application.logger.error(f"Failed to record action log: {e}")
-    finally:
-        cur.close()
-        conn.close()
-
-# Account deletion requests (Makaila)
-def remove_profile_image(image_url):
-    prefix = "/api/profile-images/"
-    if image_url and image_url.startswith(prefix + "profiles/"):
-        s3.delete_object(Bucket=BUCKET_NAME, Key=image_url[len(prefix):])
-
-
-# the lambda looks get_db_connection up each time so tests can swap it
-initAccountRequests(application, lambda: get_db_connection(), remove_profile_image)
+    
+    # Auto-initialize database on first connection if tables don't exist
+    if not _db_initialized:
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM users LIMIT 1")
+            cur.close()
+            _db_initialized = True
+        except Exception:
+            # Tables don't exist, initialize them
+            cur = conn.cursor()
+            try:
+                init_db()
+                _db_initialized = True
+                print("Database initialized on first connection")
+            except Exception as e:
+                print(f"Auto-init failed: {e}")
+            finally:
+                cur.close()
+    
+    return conn
 
 
 def init_db():

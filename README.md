@@ -3,7 +3,8 @@
 A cloud-based campus marketplace for Hampton University students.
 
 # Deployed Link
-https://cloudmart-five.vercel.app/
+http://cloudmart-env.eba-wbku2kbr.us-east-1.elasticbeanstalk.com/index.html
+
 
 ## Prerequisites
 
@@ -50,7 +51,7 @@ pip install flask flask-cors sshtunnel psycopg bcrypt python-dotenv boto3
 ### 5. Run the application
 
 ```bash
-python app.py
+python application.py
 ```
 
 The server will start at **http://localhost:5001**
