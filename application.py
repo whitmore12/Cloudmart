@@ -70,7 +70,6 @@ USE_SSH_TUNNEL = os.environ.get("USE_SSH_TUNNEL", "true").lower() == "true"
 
 tunnel = None
 _db_initialized = False
-_force_reinit = True  # Set to True to force re-initialization
 
 
 def start_ssh_tunnel():
@@ -88,7 +87,7 @@ def start_ssh_tunnel():
 
 
 def get_db_connection():
-    global _db_initialized, _force_reinit
+    global _db_initialized
     if USE_SSH_TUNNEL:
         # Local development: use SSH tunnel
         tun = start_ssh_tunnel()
@@ -110,23 +109,19 @@ def get_db_connection():
         )
     
     # Auto-initialize database on first connection if tables don't exist
-    if not _db_initialized or _force_reinit:
+    if not _db_initialized:
         try:
             cur = conn.cursor()
             cur.execute("SELECT 1 FROM users LIMIT 1")
-            # Also check for pirate_dollars column
             cur.execute("SELECT pirate_dollars FROM users LIMIT 1")
             cur.close()
             _db_initialized = True
-            _force_reinit = False
         except Exception:
             # Tables don't exist or schema incomplete, initialize them using a separate connection
-            # to avoid transaction issues
             conn.close()
             try:
                 init_db()
                 _db_initialized = True
-                _force_reinit = False
                 print("Database initialized on first connection")
             except Exception as e:
                 print(f"Auto-init failed: {e}")
