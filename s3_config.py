@@ -3,6 +3,7 @@ import os
 import boto3  # type: ignore[import-not-found]
 
 # Use explicit credentials if provided, otherwise fall back to IAM role (for EB/EC2)
+# Use explicit credentials if provided, otherwise fall back to IAM role (for EB/EC2)
 aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
 aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
@@ -39,7 +40,7 @@ if aws_access_key_id and aws_secret_access_key:
     )
 else:
     # Use IAM role (recommended for EB)
-    s3 = boto3.client("s3", region_name=bucket_region)
+    s3 = boto3.client("s3", region_name=aws_region)
 
 BUCKET_NAME = bucket_name
 AWS_REGION = bucket_region

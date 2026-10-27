@@ -87,64 +87,41 @@ def start_ssh_tunnel():
 
 
 def get_db_connection():
-    global _db_initialized
-    if USE_SSH_TUNNEL:
-        # Local development: use SSH tunnel
-        tun = start_ssh_tunnel()
-        conn = psycopg.connect(
-            host="127.0.0.1",
-            port=tun.local_bind_port,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
-    else:
-        # Production (EB): direct connection to RDS
-        conn = psycopg.connect(
-            host=DB_HOST,
-            port=RDS_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
-    
-    # Auto-initialize database on first connection if tables don't exist
-    if not _db_initialized:
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT 1 FROM users LIMIT 1")
-            cur.execute("SELECT pirate_dollars FROM users LIMIT 1")
-            cur.close()
-            _db_initialized = True
-        except Exception:
-            # Tables don't exist or schema incomplete, initialize them using a separate connection
-            conn.close()
-            try:
-                init_db()
-                _db_initialized = True
-                print("Database initialized on first connection")
-            except Exception as e:
-                print(f"Auto-init failed: {e}")
-            # Return a new connection
-            if USE_SSH_TUNNEL:
-                tun = start_ssh_tunnel()
-                return psycopg.connect(
-                    host="127.0.0.1",
-                    port=tun.local_bind_port,
-                    dbname=DB_NAME,
-                    user=DB_USER,
-                    password=DB_PASSWORD
-                )
-            else:
-                return psycopg.connect(
-                    host=DB_HOST,
-                    port=RDS_PORT,
-                    dbname=DB_NAME,
-                    user=DB_USER,
-                    password=DB_PASSWORD
-                )
-    
-    return conn
+    tun = start_ssh_tunnel()
+    return psycopg.connect(
+        host="127.0.0.1",
+        port=tun.local_bind_port,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )
+
+def log_action(who, action, target):
+    """Logs an action to the action_logs database table."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO action_logs (who, action, target)
+            VALUES (%s, %s, %s)
+        """, (str(who), str(action), str(target)))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        application.logger.error(f"Failed to record action log: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+# Account deletion requests (Makaila)
+def remove_profile_image(image_url):
+    prefix = "/api/profile-images/"
+    if image_url and image_url.startswith(prefix + "profiles/"):
+        s3.delete_object(Bucket=BUCKET_NAME, Key=image_url[len(prefix):])
+
+
+# the lambda looks get_db_connection up each time so tests can swap it
+initAccountRequests(application, lambda: get_db_connection(), remove_profile_image, log_action)
 
 
 def init_db():
@@ -159,7 +136,17 @@ def init_db():
         password_hash TEXT,
         role VARCHAR(20) DEFAULT 'user',
         profile_image TEXT,
-        pirate_dollars NUMERIC DEFAULT 100.00,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS password_resets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -167,11 +154,6 @@ def init_db():
     cur.execute("""
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS profile_image TEXT
-    """)
-
-    cur.execute("""
-    ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS pirate_dollars NUMERIC DEFAULT 100.00
     """)
 
     cur.execute("""
@@ -209,17 +191,6 @@ def init_db():
         listing_id INTEGER REFERENCES listings(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, listing_id)
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS transactions (
-        id SERIAL PRIMARY KEY,
-        from_user_id INTEGER REFERENCES users(id),
-        to_user_id INTEGER REFERENCES users(id),
-        amount NUMERIC,
-        type VARCHAR(20),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
