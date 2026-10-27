@@ -4,16 +4,16 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CloudMart Marketplace</title>
+<title>eCamp Marketplace</title>
 <link rel="stylesheet" href="styles.css" />
 <style>
 * { box-sizing: border-box; margin:0; padding:0; }
-body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #fff; line-height:1.5; }
+body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1d233e; line-height:1.5; }
 
 .site-header {
-  background: #111827;
+  background: #ffffff;
   padding: 12px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(29,35,62,0.12);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -28,7 +28,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
   gap: 10px;
   font-weight: bold;
   font-size: 1.2rem;
-  color: white;
+  color: #1d233e;
   text-decoration: none;
 }
 
@@ -50,29 +50,29 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 }
 .btn:hover { opacity: 0.85; }
 
-.btn-primary { background: #2563eb; border: none; color: white; }
+.btn-primary { background: #e25d3b; border: none; color: white; }
 .btn-secondary { background: #ef4444; border: none; color: white; }
-.btn-outline { border: 1px solid white; background: transparent; color: white; }
+.btn-outline { border: 1px solid #e25d3b; background: transparent; color: #e25d3b; }
 .full { width: 100%; }
 
 .user-btn {
   background: transparent;
   border: none;
-  color: white;
+  color: #1d233e;
   cursor: pointer;
   font: inherit;
   padding: 0 4px;
 }
 .user-btn:hover {
-  color: #93c5fd;
+  color: #e25d3b;
 }
 
 .fb-layout { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 70px); }
 
 .fb-sidebar {
   padding: 20px;
-  background: #111827;
-  border-right: 1px solid rgba(255,255,255,0.1);
+  background: #ffffff;
+  border-right: 1px solid rgba(29,35,62,0.12);
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -83,8 +83,8 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
   padding: 10px 15px;
   border-radius: 999px;
   border: none;
-  background: #1f2937;
-  color: white;
+  background: #ece7d6;
+  color: #1d233e;
   outline: none;
 }
 
@@ -97,7 +97,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 .fb-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
 
 .feature-card {
-  background: #111827;
+  background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -107,14 +107,14 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 
 .feature-card:hover {
   transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 12px rgba(29,35,62,0.18);
 }
 
 .product-img {
   width: 100%;
   height: 180px;
   object-fit: cover;
-  background: #1f2937;
+  background: #ece7d6;
 }
 
 .card-body {
@@ -125,7 +125,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 }
 
 .price { font-weight: bold; font-size: 1.1rem; }
-.condition { font-size: 0.85rem; color: #9ca3af; }
+.condition { font-size: 0.85rem; color: #706b5f; }
 
 .card-header-row {
   display: flex;
@@ -147,7 +147,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
 
 .seller-btn {
   background: transparent;
-  color: #93c5fd;
+  color: #e25d3b;
   border: none;
   cursor: pointer;
   padding: 0;
@@ -155,11 +155,11 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
   text-decoration: underline;
 }
 .seller-btn:hover {
-  color: #bfdbfe;
+  color: #c8502f;
 }
 
 .muted {
-  color: #9ca3af;
+  color: #706b5f;
   font-size: 0.92rem;
 }
 
@@ -176,56 +176,23 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
   .fb-grid { grid-template-columns: 1fr; }
   .nav-menu { flex-direction: column; align-items: flex-end; gap: 5px; }
 }
-
-.msg-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  z-index: 2000;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-.msg-overlay.open { display: flex; }
-.msg-box {
-  background: #111827;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 14px;
-  padding: 20px;
-  width: 100%;
-  max-width: 440px;
-}
-.msg-box h3 { margin-bottom: 4px; }
-.msg-box textarea {
-  width: 100%;
-  min-height: 110px;
-  margin: 12px 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: #0f172a;
-  color: white;
-  font: inherit;
-  resize: vertical;
-}
-.msg-actions { display: flex; gap: 8px; }
-.msg-actions .btn { flex: 1; }
 </style>
+  <link rel="icon" type="image/svg+xml" href="/Resources/eCampFavicon.svg">
 </head>
 <body>
 
 <header class="site-header">
   <a class="brand" href="index.html">
-    <img src="https://cloudmart-images.s3.us-east-2.amazonaws.com/Logo.png" class="logo" alt="CloudMart Logo" />
-    <span>CloudMart</span>
+    <img src="/Resources/eCampLogo.svg" class="logo" alt="eCamp logo" />
+    <span>eCamp</span>
   </a>
 
   <div class="nav-menu">
-  <button class="btn btn-primary" style="display: none;" onclick="goToCreatePage()">+ Sell Item</button>
-  <button class="btn btn-outline" style="display: none;" onclick="goToWishlist()">❤️ Wishlist</button>
-  <button class="btn btn-secondary" style="display: none;" onclick="goToCartPage()">🛒 Cart (<span id="cartCount">0</span>)</button>
-  
+  <button id="createListingBtn" class="btn btn-primary" style="display: none;" onclick="goToCreatePage()">+ Sell Item</button>
+  <button id="wishlistBtn" class="btn btn-outline" style="display: none;" onclick="goToWishlist()">❤️ Wishlist</button>
+  <button id="cartBtn" class="btn btn-secondary" style="display: none;" onclick="goToCartPage()">🛒 Cart (<span id="cartCount">0</span>)</button>
+  <button id="walletBtn" class="btn btn-secondary" style="display: none;" onclick="goToWallet()">💰 Wallet (<span id="walletBalance">$0.00</span>)</button>
+ 
   <button id="adminBtn" class="btn btn-outline" onclick="goToAdmin()">📊 Admin</button>
   <button id="userDisplay" class="btn btn-outline" onclick="goToMyListings()"></button>
   <button class="btn btn-outline" onclick="logout()">Sign Out</button>
@@ -262,21 +229,8 @@ body { font-family: system-ui, Arial, sans-serif; background: #0b1020; color: #f
   </section>
 </main>
 
-<!-- Message seller popup -->
-<div id="msgOverlay" class="msg-overlay">
-  <div class="msg-box">
-    <h3 id="msgItemTitle">Message seller</h3>
-    <p id="msgSellerName" class="muted"></p>
-    <textarea id="msgBody" maxlength="2000" placeholder="Write your message..."></textarea>
-    <div class="msg-actions">
-      <button class="btn btn-primary" id="msgSendBtn" onclick="sendMessageToSeller()">Send</button>
-      <button class="btn btn-outline" onclick="closeMessageBox()">Cancel</button>
-    </div>
-  </div>
-</div>
-
 <script>
-const API = "http://localhost:5001";
+const API = window.location.origin;
 
 let allListings = [];
 let wishlistItems = [];
@@ -286,8 +240,23 @@ const user = JSON.parse(localStorage.getItem("user") || "null");
 if (user) {
   const el = document.getElementById("userDisplay");
   if (el) el.innerText = "Hi, " + (user.username || "User");
+  document.getElementById("createListingBtn").style.display = "inline-flex";
+  document.getElementById("wishlistBtn").style.display = "inline-flex";
+  document.getElementById("cartBtn").style.display = "inline-flex";
+  document.getElementById("walletBtn").style.display = "inline-flex";
+  loadWalletBalance();
 } else {
   window.location.href = "Signin.html";
+}
+
+async function loadWalletBalance() {
+  try {
+    const res = await fetch(`${API}/api/wallet/balance?user_id=${user.id}`);
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById("walletBalance").textContent = "$" + Number(data.balance).toFixed(2);
+    }
+  } catch (e) { console.error(e); }
 }
 
 // Hide admin button if user is not admin
@@ -312,6 +281,7 @@ function updateCartCount() {
 function goToCreatePage() { window.location.href = "create.html"; }
 function goToCartPage() { window.location.href = "cart.html"; }
 function goToWishlist() { window.location.href = "wishlist.html"; }
+function goToWallet() { window.location.href = "wallet.html"; }
 function goToAdmin() { window.location.href = "admin.html"; }
 
 function goToSellerListings(sellerName) {
@@ -337,12 +307,7 @@ async function loadListings() {
     const res = await fetch(`${API}/api/listings`);
     const data = await res.json();
 
-    allListings = Array.isArray(data)
-      ? data.filter(item => {
-          if (!user || user.id == null) return true;
-          return Number(item.user_id) !== Number(user.id);
-        })
-      : [];
+    allListings = Array.isArray(data) ? data : [];
 
     renderListings(allListings);
   } catch (err) {
@@ -383,7 +348,6 @@ function renderListings(data) {
     const safeCategory = escapeHtml(item.category);
     const safeCondition = escapeHtml(item.condition);
     const safeSeller = escapeHtml(item.seller || "");
-    const safeSellerEmail = escapeHtml(item.seller_email || "No email available");
     const safeImage = escapeHtml(item.image);
     const displayPrice = Number(item.price) || 0;
 
@@ -402,12 +366,13 @@ function renderListings(data) {
       <h3>${safeTitle}</h3>
       <p class="condition">${safeCategory} • ${safeCondition}</p>
       <p class="muted">Seller: ${sellerMarkup}</p>
-      <p class="muted">Email: ${safeSellerEmail}</p>
+
+      <button class="heart-btn ${isSaved ? 'saved' : ''}" onclick="toggleWishlist(${item.id}, ${isSaved})">${isSaved ? '❤️' : '🤍'}</button>
 
       ${
-        !isOwner ? `
-          <button onclick="openMessageBox(${Number(item.id)})" class="btn btn-primary full" style="margin-top: 5px;">💬 Message seller</button>
-        ` : ""
+        !isOwner && item.status === "active"
+          ? `<button onclick="addToCart(${item.id})" class="btn btn-primary full">Add to Cart</button>`
+          : ""
       }
 
       ${
@@ -516,76 +481,24 @@ async function toggleWishlist(listingId, isSaved) {
     if (res.ok) {
       await loadWishlist();
       renderListings(allListings);
+    } else {
+      const data = await res.json();
+      alert(data.error || "Could not update wishlist.");
     }
   } catch (err) {
     console.error("Wishlist error:", err);
-  }
-}
-
-let messageTarget = null;
-
-function openMessageBox(listingId) {
-  if (!user || user.id == null) return alert("Please sign in first.");
-
-  const item = allListings.find(i => Number(i.id) === Number(listingId));
-  if (!item) return;
-
-  messageTarget = { listingId: Number(item.id), receiverId: Number(item.user_id) };
-
-  document.getElementById("msgItemTitle").innerText = item.title || "Message seller";
-  document.getElementById("msgSellerName").innerText = "To: " + (item.seller || "Seller");
-  document.getElementById("msgBody").value = "";
-  document.getElementById("msgOverlay").classList.add("open");
-  document.getElementById("msgBody").focus();
-}
-
-function closeMessageBox() {
-  document.getElementById("msgOverlay").classList.remove("open");
-  messageTarget = null;
-}
-
-async function sendMessageToSeller() {
-  if (!messageTarget || !user) return;
-
-  const body = document.getElementById("msgBody").value.trim();
-  if (!body) return alert("Please type a message.");
-
-  const sendBtn = document.getElementById("msgSendBtn");
-  sendBtn.disabled = true;
-
-  try {
-    const res = await fetch(`${API}/api/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sender_id: user.id,
-        receiver_id: messageTarget.receiverId,
-        listing_id: messageTarget.listingId,
-        body
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Failed to send message.");
-      return;
-    }
-
-    closeMessageBox();
-    alert("Message sent! You can read replies in the Messages section of your profile.");
-  } catch (err) {
-    console.error("Send message error:", err);
     alert("Error connecting to server.");
-  } finally {
-    sendBtn.disabled = false;
   }
 }
+
+
 
 async function init() {
   await loadWishlist();
   await loadListings();
 }
+
+
 
 init();
 </script>

@@ -111,7 +111,7 @@ def remove_profile_image(image_url):
 
 
 # the lambda looks get_db_connection up each time so tests can swap it
-initAccountRequests(app, lambda: get_db_connection(), remove_profile_image, log_action)
+initAccountRequests(app, lambda: get_db_connection(), remove_profile_image)
 
 
 def init_db():
@@ -816,8 +816,10 @@ def update_listing(listing_id):
 # Edited By Taj Brown
 @app.route("/api/listings/<int:listing_id>/mark-sold", methods=["PUT"])
 def mark_listing_sold(listing_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     user_id = data.get("user_id")
+    if user_id is None:
+        return jsonify({"error": "User ID is required"}), 400
     user_role = data.get("role")
     buyer_email = (data.get("buyer_email") or "").strip().lower()
 
@@ -1452,8 +1454,9 @@ def review_return_request(return_id):
             """, (listing_id,))
 
         conn.commit()
-      
-        actor = f"Admin (ID: {user_id})" if user_role == "admin" else f"User {user_id}"
+
+      #Edited By Taj Brown (changed user_id to seller_id in the actor variable to correctly log the action)
+        actor = f"Admin (ID: {seller_id})" if user_role == "admin" else f"User {seller_id}"
         log_action(actor, "DELETE_LISTING", f"Listing #{listing_id}")
 
         return jsonify({

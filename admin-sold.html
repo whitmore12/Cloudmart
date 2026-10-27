@@ -1,0 +1,93 @@
+<!-- TJ M edited code -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sold Listings</title>
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: system-ui, Arial, sans-serif; background:#f3f0e7; color:#1d233e; padding:20px; }
+    .header, .panel { background:#ffffff; border:1px solid rgba(29,35,62,0.12); border-radius:12px; }
+    .header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; margin-bottom:20px; }
+    .panel { padding:16px; overflow-x:auto; }
+    .btn { padding:8px 16px; border-radius:8px; border:1px solid #e25d3b; background:transparent; color:#e25d3b; cursor:pointer; font-weight:bold; }
+    table { width:100%; border-collapse:collapse; min-width:700px; }
+    th, td { padding:10px 12px; border-bottom:1px solid rgba(29,35,62,0.10); text-align:left; }
+    th { color:#e25d3b; background:rgba(29,35,62,0.05); }
+  </style>
+  <link rel="icon" type="image/svg+xml" href="/Resources/eCampFavicon.svg">
+</head>
+<body>
+  <div class="header">
+    <h1>Sold Listings</h1>
+    <button class="btn" onclick="window.location.href='admin.html'">← Back</button>
+  </div>
+
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>User ID</th>
+          <th>Title</th>
+          <th>Price</th>
+          <th>Category</th>
+          <th>Condition</th>
+          <th>Seller</th>
+          <th>Status</th>
+          <th>Buyer Email</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    if (!user || user.role !== "admin") {
+      alert("Access denied.");
+      window.location.href = "Signin.html";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    async function loadPage() {
+      const res = await fetch(`${API}/api/admin/dashboard?role=${encodeURIComponent(user.role)}`);
+      const data = await res.json();
+
+      const body = document.getElementById("tableBody");
+      body.innerHTML = "";
+
+      data.listings
+        .filter(l => String(l.status).toLowerCase() === "sold")
+        .forEach(l => {
+          body.innerHTML += `
+            <tr>
+              <td>${l.id}</td>
+              <td>${l.user_id}</td>
+              <td>${escapeHtml(l.title)}</td>
+              <td>$${Number(l.price).toFixed(2)}</td>
+              <td>${escapeHtml(l.category)}</td>
+              <td>${escapeHtml(l.condition)}</td>
+              <td>${escapeHtml(l.seller)}</td>
+              <td>${escapeHtml(l.status)}</td>
+              <td>${escapeHtml(l.buyer_email || "")}</td>
+            </tr>
+          `;
+        });
+    }
+
+    loadPage();
+  </script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Cart | eCamp</title>
+<style>
+
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1d233e; line-height:1.5; min-height: 100vh; }
+
+/*Same header format as wishlist.html */
+.site-header {
+  background: #ffffff;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(29,35,62,0.12);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1.2rem; color: #1d233e; text-decoration: none; }
+.logo { height: 40px; }
+.nav-menu { display: flex; gap: 10px; align-items: center; }
+
+
+.btn { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; transition:0.2s; border: none; }
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: #e25d3b; color: white; }
+.btn-outline { border: 1px solid #e25d3b; background: transparent; color: #e25d3b; text-decoration: none; }
+.btn-danger { background: #ef4444; color: white; }
+
+
+.main-content { max-width: 1000px; margin: 0 auto; padding: 30px 20px; }
+.page-header { margin-bottom: 30px; border-bottom: 1px solid rgba(29,35,62,0.14); padding-bottom: 15px; }
+
+/* cart table */
+.cart-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+.cart-table th { text-align: left; padding: 15px; border-bottom: 2px solid rgba(29,35,62,0.14); color: #706b5f; text-transform: uppercase; font-size: 0.8rem; }
+.cart-table td { padding: 20px 15px; border-bottom: 1px solid rgba(29,35,62,0.14); vertical-align: middle; }
+
+.product-info { display: flex; align-items: center; gap: 20px; }
+.product-img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+.product-details h3 { font-size: 1rem; margin-bottom: 4px; }
+.product-details p { font-size: 0.85rem; color: #706b5f; }
+
+/* Summary section */
+.cart-summary {
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.total-label { color: #706b5f; font-size: 1.1rem; }
+.total-amount { font-size: 2rem; font-weight: bold; color: #10b981; }
+
+.empty-state { text-align: center; padding: 80px 20px; color: #706b5f; }
+.empty-icon { font-size: 4rem; margin-bottom: 20px; }
+
+@media (max-width: 600px) {
+  .nav-menu { display: none; }
+  .cart-summary { flex-direction: column; gap: 20px; text-align: center; }
+}
+</style>
+  <link rel="icon" type="image/svg+xml" href="/Resources/eCampFavicon.svg">
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="index.html">
+<img src="/Resources/eCampLogo.svg" class="logo" alt="eCamp logo" />
+    <span>eCamp</span>
+  </a>
+  <div class="nav-menu">
+    <a href="index.html" class="btn btn-outline">← Back to Home</a>
+    <span id="userDisplay"></span>
+    <button class="btn btn-outline" onclick="signOut()">Sign Out</button>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1>🛒 Your Shopping Cart</h1>
+  </div>
+
+  <div id="cartContent">
+    <table class="cart-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Price</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="cartItems">
+        </tbody>
+    </table>
+
+    <div class="cart-summary">
+      <div>
+        <span class="total-label">Subtotal:</span>
+        <div class="total-amount" id="cartTotal">$0.00</div>
+      </div>
+      <div>
+        <button class="btn btn-outline" style="margin-right: 10px;" onclick="clearCart()">Clear Cart</button>
+        <button class="btn btn-primary" style="padding: 12px 30px;" onclick="checkout()">Checkout</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="emptyState" class="empty-state" style="display: none;">
+    <div class="empty-icon">🛒</div>
+    <h2>Your cart is currently empty</h2>
+    <p>Find something you love in the marketplace!</p>
+    <br>
+    <a href="index.html" class="btn btn-primary">Browse Items</a>
+  </div>
+</main>
+
+<script>
+const API = window.location.origin;
+// Authentication check (index.html)
+const currentUser = localStorage.getItem("currentUser");
+if (currentUser) {
+  document.getElementById("userDisplay").innerText = "Hi, " + currentUser;
+}
+
+function signOut() {
+  localStorage.removeItem("isLoggedIn");
+  localStorage.removeItem("currentUser");
+  localStorage.removeItem("userId");
+  window.location.href = "/";
+}
+
+// Cart logic
+function renderCart() {
+  // Fetches data to be saved in index.html 
+  let cart = JSON.parse(localStorage.getItem("cart")) || [];
+  
+  const itemsContainer = document.getElementById("cartItems");
+  const cartContent = document.getElementById("cartContent");
+  const emptyState = document.getElementById("emptyState");
+  const totalDisplay = document.getElementById("cartTotal");
+
+  if (cart.length === 0) {
+    cartContent.style.display = "none";
+    emptyState.style.display = "block";
+    return;
+  }
+
+  cartContent.style.display = "block";
+  emptyState.style.display = "none";
+  itemsContainer.innerHTML = "";
+  
+  let total = 0;
+
+  cart.forEach((item, index) => {
+    // Converts price input to number for compatibility with create.html
+    const price = parseFloat(item.price) || 0; 
+    total += price;
+
+    itemsContainer.innerHTML += `
+      <tr>
+        <td>
+          <div class="product-info">
+            <img src="${item.image}" class="product-img">
+            <div class="product-details">
+              <h3>${item.title}</h3>
+              <p>${item.category} • ${item.condition}</p>
+            </div>
+          </div>
+        </td>
+        <td style="font-weight: bold;">$${price.toFixed(2)}</td>
+        <td>
+          <button class="btn btn-danger" onclick="removeFromCart(${index})">Remove</button>
+        </td>
+      </tr>
+    `;
+  });
+
+  totalDisplay.innerText = "$" + total.toFixed(2);
+}
+
+function removeFromCart(index) {
+  let cart = JSON.parse(localStorage.getItem("cart")) || [];
+  cart.splice(index, 1);
+  localStorage.setItem("cart", JSON.stringify(cart));
+  renderCart();
+}
+
+function clearCart() {
+  if(confirm("Empty your entire cart?")) {
+    localStorage.setItem("cart", JSON.stringify([]));
+    renderCart();
+  }
+}
+// Demo checkout records the sale, but does not process a real payment.
+async function setStatusToSold(listingId, user) {
+  let res = await fetch(`${API}/api/listings/${parseInt(listingId)}/mark-sold`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: user.id,
+      role: user.role,
+      buyer_email: user.email
+    })
+  }) 
+  
+  <!--added a response handlingfor the fetch request -->
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(await res.json().error || "Listing could not be marked as sold.")
+  }
+  return await res.json()
+}
+
+async function checkout() {
+  const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const checkoutButton = document.querySelector("#cartContent button[onclick='checkout()']");
+
+  if (!cart.length) return;
+  if (!user || !user.id || !user.email) {
+    alert("Please sign in again before checking out.");
+    window.location.href = "Signin.html";
+    return;
+  }
+
+  const items = [...new Map(cart.map(item => [Number(item.id), item])).values()];
+  const purchasedIds = new Set();
+  if (checkoutButton) checkoutButton.disabled = true;
+
+  try {
+    for (const item of items) {
+      await setStatusToSold(item.id, user);
+      purchasedIds.add(Number(item.id));
+    }
+
+    localStorage.setItem("cart", JSON.stringify([]));
+    alert("Demo checkout complete. No payment was processed. Your purchase is saved to your profile.");
+    window.location.href = `profile.html?seller=${encodeURIComponent(user.username)}#boughtSection`;
+  } catch (error) {
+    const remaining = cart.filter(item => !purchasedIds.has(Number(item.id)));
+    localStorage.setItem("cart", JSON.stringify(remaining));
+    alert(error.message || "Could not complete checkout. Please try again.");
+    renderCart();
+    if (checkoutButton) checkoutButton.disabled = false;
+  }
+}
+
+
+renderCart();
+</script>
+</body>
+</html>

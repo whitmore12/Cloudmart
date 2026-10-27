@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <!-- Created by Howard Ames III-->
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>eCamp Admin Returns</title>
+
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; }
+
+    body {
+      font-family: system-ui, Arial, sans-serif;
+      background: #f3f0e7;
+      color: #1d233e;
+      line-height: 1.5;
+      padding: 20px;
+    }
+
+    .site-header {
+      background: #ffffff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .muted {
+      color: #706b5f;
+      font-size: 0.95rem;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #1d233e;
+      background: transparent;
+      color: #1d233e;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .panel {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(29,35,62,0.12);
+      overflow-x: auto;
+    }
+
+    .panel h2 {
+      margin-bottom: 14px;
+      font-size: 1.2rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(29,35,62,0.10);
+      font-size: 0.95rem;
+      vertical-align: top;
+    }
+
+    th {
+      color: #e25d3b;
+      font-weight: 700;
+      background: rgba(29,35,62,0.05);
+    }
+
+    tr:hover td {
+      background: rgba(29,35,62,0.05);
+    }
+
+    .status {
+      font-weight: bold;
+      text-transform: capitalize;
+    }
+  </style>
+  <link rel="icon" type="image/svg+xml" href="/Resources/eCampFavicon.svg">
+</head>
+
+<body>
+  <header class="site-header">
+    <div>
+      <h1>Return Requests</h1>
+      <p class="muted">Admin view of all return requests</p>
+    </div>
+    <button class="btn" onclick="goBack()">← Back to Admin</button>
+  </header>
+
+  <section class="panel">
+    <h2>All Returns</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Return ID</th>
+          <th>Listing ID</th>
+          <th>Listing Title</th>
+          <th>Seller ID</th>
+          <th>Buyer ID</th>
+          <th>Buyer Email</th>
+          <th>Reason</th>
+          <th>Status</th>
+          <th>Seller Note</th>
+          <th>Created At</th>
+          <th>Reviewed At</th>
+        </tr>
+      </thead>
+      <tbody id="returnsTable"></tbody>
+    </table>
+  </section>
+
+  <script>
+    const API = window.location.origin;
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    if (!user || user.role !== "admin") {
+      alert("Access denied. Admins only.");
+      window.location.href = "Signin.html";
+    }
+
+    function goBack() {
+      window.location.href = "admin.html";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    async function loadReturns() {
+      try {
+        const res = await fetch(`${API}/api/admin/dashboard?role=${encodeURIComponent(user.role)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to load returns");
+        }
+
+        const returns = data.return_requests || [];
+        const table = document.getElementById("returnsTable");
+        table.innerHTML = "";
+
+        if (returns.length === 0) {
+          table.innerHTML = `
+            <tr>
+              <td colspan="11">No return requests found.</td>
+            </tr>
+          `;
+          return;
+        }
+
+        returns.forEach(r => {
+          table.innerHTML += `
+            <tr>
+              <td>${r.id}</td>
+              <td>${r.listing_id}</td>
+              <td>${escapeHtml(r.title || "")}</td>
+              <td>${r.seller_id}</td>
+              <td>${r.buyer_id}</td>
+              <td>${escapeHtml(r.buyer_email || "")}</td>
+              <td>${escapeHtml(r.reason || "")}</td>
+              <td class="status">${escapeHtml(r.status || "")}</td>
+              <td>${escapeHtml(r.seller_note || "")}</td>
+              <td>${escapeHtml(r.created_at || "")}</td>
+              <td>${escapeHtml(r.reviewed_at || "")}</td>
+            </tr>
+          `;
+        });
+
+      } catch (err) {
+        console.error(err);
+        alert(err.message);
+      }
+    }
+
+    loadReturns();
+  </script>
+</body>
+</html>

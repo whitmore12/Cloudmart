@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>User Profile | CloudMart</title>
+<title>User Profile | eCamp</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,15 +14,15 @@ html {
 
 body {
   font-family: system-ui, Arial, sans-serif;
-  background: #020b2a;
-  color: white;
+  background: #f3f0e7;
+  color: #1d233e;
   min-height: 100vh;
 }
 
 .site-header {
-  background: #09152f;
+  background: #ffffff;
   padding: 12px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(29,35,62,0.12);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -32,7 +32,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: white;
+  color: #1d233e;
   text-decoration: none;
   font-weight: bold;
   font-size: 1.2rem;
@@ -41,9 +41,9 @@ body {
 .logo { height: 40px; }
 
 .back-btn {
-  border: 1px solid white;
+  border: 1px solid #e25d3b;
   background: transparent;
-  color: white;
+  color: #e25d3b;
   padding: 10px 16px;
   border-radius: 10px;
   cursor: pointer;
@@ -59,8 +59,8 @@ body {
 }
 
 .hero {
-  background: rgba(17, 24, 39, 0.75);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: #ffffff;
+  border: 1px solid rgba(29,35,62,0.10);
   border-radius: 16px;
   padding: 28px;
   margin-bottom: 20px;
@@ -86,32 +86,32 @@ body {
   height: 110px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid rgba(255,255,255,0.15);
-  background: #111827;
+  border: 3px solid rgba(29,35,62,0.15);
+  background: #ffffff;
 }
 
 .profile-avatar-fallback {
   width: 110px;
   height: 110px;
   border-radius: 50%;
-  background: #111827;
-  border: 3px solid rgba(255,255,255,0.15);
+  background: #ffffff;
+  border: 3px solid rgba(29,35,62,0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 2rem;
   font-weight: 700;
-  color: #93c5fd;
+  color: #e25d3b;
 }
 
 .hero-text h1 {
   font-size: 2rem;
-  color: #3b82f6;
+  color: #e25d3b;
   margin-bottom: 10px;
 }
 
 .hero-text p {
-  color: #d1d5db;
+  color: #706b5f;
   font-size: 1rem;
 }
 
@@ -121,7 +121,7 @@ body {
 }
 
 .profile-email a {
-  color: #60a5fa;
+  color: #e25d3b;
   text-decoration: none;
 }
 
@@ -132,8 +132,8 @@ body {
 .edit-profile-panel {
   margin-top: 18px;
   display: none;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(29,35,62,0.05);
+  border: 1px solid rgba(29,35,62,0.10);
   border-radius: 14px;
   padding: 18px;
 }
@@ -151,14 +151,14 @@ body {
 }
 
 .form-group label {
-  color: #dbeafe;
+  color: #1d233e;
   font-weight: 600;
 }
 
 .form-group input {
-  background: #0f172a;
-  color: white;
-  border: 1px solid rgba(255,255,255,0.15);
+  background: #ece7d6;
+  color: #1d233e;
+  border: 1px solid rgba(29,35,62,0.15);
   border-radius: 10px;
   padding: 10px 12px;
 }
@@ -179,21 +179,21 @@ body {
   height: 76px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid rgba(255,255,255,0.15);
-  background: #111827;
+  border: 2px solid rgba(29,35,62,0.15);
+  background: #ffffff;
 }
 
 .preview-fallback {
   width: 76px;
   height: 76px;
   border-radius: 50%;
-  background: #111827;
-  border: 2px solid rgba(255,255,255,0.15);
+  background: #ffffff;
+  border: 2px solid rgba(29,35,62,0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: #93c5fd;
+  color: #e25d3b;
 }
 
 .section-nav {
@@ -201,8 +201,8 @@ body {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 28px;
-  background: rgba(17, 24, 39, 0.75);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: #ffffff;
+  border: 1px solid rgba(29,35,62,0.10);
   border-radius: 16px;
   padding: 14px;
 }
@@ -231,10 +231,10 @@ body {
 }
 
 .card {
-  background: #111827;
+  background: #ffffff;
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 14px rgba(29,35,62,0.18);
   display: flex;
   flex-direction: column;
 }
@@ -243,7 +243,7 @@ body {
   width: 100%;
   height: 180px;
   object-fit: cover;
-  background: #1f2937;
+  background: #ece7d6;
 }
 
 .card-body {
@@ -259,7 +259,7 @@ body {
 }
 
 .meta {
-  color: #9ca3af;
+  color: #706b5f;
   font-size: 0.92rem;
 }
 
@@ -292,8 +292,8 @@ body {
 
 .badge.approved {
   background: rgba(59,130,246,0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(96,165,250,0.35);
+  color: #e25d3b;
+  border: 1px solid rgba(226,93,59,0.35);
 }
 
 .badge.denied {
@@ -304,7 +304,7 @@ body {
 
 .badge.deleted {
   background: rgba(107,114,128,0.18);
-  color: #d1d5db;
+  color: #706b5f;
   border: 1px solid rgba(209,213,219,0.28);
 }
 
@@ -324,7 +324,7 @@ body {
 }
 
 .btn-primary {
-  background: #2563eb;
+  background: #e25d3b;
   color: white;
 }
 
@@ -335,8 +335,8 @@ body {
 
 .btn-outline {
   background: transparent;
-  color: white;
-  border: 1px solid rgba(255,255,255,0.3);
+  color: #e25d3b;
+  border: 1px solid rgba(226,93,59,0.55);
 }
 
 .btn-success {
@@ -346,17 +346,17 @@ body {
 
 .btn-warning {
   background: #d97706;
-  color: white;
+  color: #ffffff;
 }
 
 .empty {
-  color: #9ca3af;
+  color: #706b5f;
   padding: 10px 2px;
 }
 
 .note-box {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(29,35,62,0.05);
+  border: 1px solid rgba(29,35,62,0.10);
   border-radius: 10px;
   padding: 10px;
   margin-top: 4px;
@@ -365,11 +365,11 @@ body {
 .subsection-title {
   font-size: 1.2rem;
   margin: 20px 0 12px;
-  color: #dbeafe;
+  color: #1d233e;
 }
 
 .helper-text {
-  color: #9ca3af;
+  color: #706b5f;
   font-size: 0.9rem;
 }
 
@@ -390,91 +390,14 @@ body {
     align-items: flex-start;
   }
 }
-
-.chat-panel {
-  margin-top: 18px;
-  background: #111827;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 14px;
-  padding: 16px;
-}
-
-.chat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-.chat-header .btn { flex: 0 0 auto; padding: 8px 12px; }
-
-.chat-messages {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 360px;
-  overflow-y: auto;
-  padding: 10px;
-  background: #0f172a;
-  border-radius: 10px;
-  margin-bottom: 12px;
-}
-
-.chat-bubble {
-  max-width: 75%;
-  padding: 8px 12px;
-  border-radius: 12px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.chat-bubble.mine {
-  align-self: flex-end;
-  background: #2563eb;
-  color: white;
-}
-
-.chat-bubble.theirs {
-  align-self: flex-start;
-  background: #1f2937;
-  color: white;
-}
-
-.chat-time {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.72rem;
-  opacity: 0.7;
-}
-
-.chat-reply {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-}
-
-.chat-reply textarea {
-  flex: 1;
-  min-height: 60px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: #0f172a;
-  color: white;
-  font: inherit;
-  resize: vertical;
-}
-
-.chat-reply .btn { flex: 0 0 auto; }
 </style>
+  <link rel="icon" type="image/svg+xml" href="/Resources/eCampFavicon.svg">
 </head>
 <body>
 <header class="site-header">
   <a class="brand" href="index.html">
-    <img src="https://cloudmart-images.s3.us-east-2.amazonaws.com/Logo.png" class="logo" alt="CloudMart Logo">
-    <span>CloudMart</span>
+    <img src="/Resources/eCampLogo.svg" class="logo" alt="eCamp logo">
+    <span>eCamp</span>
   </a>
   <button class="back-btn" onclick="window.location.href='index.html'">← Back to Marketplace</button>
 </header>
@@ -526,8 +449,7 @@ body {
     <a href="#soldSection" class="btn btn-outline">Sold Listings</a>
     <a href="#deletedSection" class="btn btn-outline">Deleted Listings</a>
     <a href="#boughtSection" class="btn btn-outline" id="boughtNavBtn" style="display:none;">Bought Items</a>
-    <a href="#messagesSection" class="btn btn-outline" id="messagesNavBtn" style="display:none;">Messages</a>
-    <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requests</a>
+    <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requests (Seller)</a>
   </nav>
 
   <section id="activeSection" class="section-block">
@@ -554,34 +476,10 @@ body {
     <p id="boughtEmpty" class="empty" style="display:none;">No purchased items found.</p>
   </section>
 
-  <section id="messagesSection" class="section-block" style="display:none;">
-    <h2 class="section-title">Messages</h2>
-    <div id="chatList" class="grid"></div>
-    <p id="chatsEmpty" class="empty" style="display:none;">No messages yet.</p>
-
-    <div id="chatPanel" class="chat-panel" style="display:none;">
-      <div class="chat-header">
-        <div>
-          <h3 id="chatTitle">Chat</h3>
-          <p id="chatWith" class="meta"></p>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-outline" type="button" onclick="refreshChat()">Refresh</button>
-          <button class="btn btn-outline" type="button" onclick="closeChat()">Close</button>
-        </div>
-      </div>
-      <div id="chatMessages" class="chat-messages"></div>
-      <div class="chat-reply">
-        <textarea id="chatReplyInput" maxlength="2000" placeholder="Write a reply..."></textarea>
-        <button class="btn btn-primary" type="button" onclick="sendChatReply()">Send</button>
-      </div>
-    </div>
-  </section>
-
   <section id="returnsSection" class="section-block" style="display:none;">
-    <h2 class="section-title">Return Requests</h2>
+    <h2 class="section-title">Return Requests (As Seller)</h2>
 
-    <h3 class="subsection-title">Requests</h3>
+    <h3 class="subsection-title">Pending</h3>
     <div id="pendingReturnRequests" class="grid"></div>
     <p id="pendingEmpty" class="empty" style="display:none;">No pending requests.</p>
 
@@ -593,10 +491,38 @@ body {
     <div id="approvedReturnRequests" class="grid"></div>
     <p id="approvedEmpty" class="empty" style="display:none;">No approved requests.</p>
   </section>
+
+  <!-- account deletion request, only shows on your own profile. Makaila Williams -->
+  <section id="accountSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Delete My Account</h2>
+    <div class="note-box">
+      <p id="deletionStatus" class="helper-text">Loading...</p>
+
+      <div id="deletionForm" style="display:none;">
+        <p class="helper-text">An admin has to approve this. Once they do, your listings come down and your name, email and picture are wiped. This cannot be undone.</p>
+        <div class="form-group" style="margin-top:10px;">
+          <label for="deletionReason">Why are you leaving? (optional)</label>
+          <input id="deletionReason" type="text" maxlength="500" placeholder="Tell the admins why" />
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label for="deletionPassword">Confirm with your password</label>
+          <input id="deletionPassword" type="password" autocomplete="current-password" />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" type="button" onclick="submitDeletionRequest()">Request Account Deletion</button>
+        </div>
+      </div>
+
+      <div id="deletionCancel" class="btn-row" style="display:none;">
+        <button class="btn btn-outline" type="button" onclick="cancelDeletionRequest()">Cancel My Request</button>
+      </div>
+    </div>
+  </section>
 </main>
 
+
 <script>
-const API = "http://localhost:5001";
+const API = window.location.origin;
 const DEFAULT_AVATAR = "https://ui-avatars.com/api/?background=0f172a&color=93c5fd&name=";
 
 const params = new URLSearchParams(window.location.search);
@@ -639,17 +565,9 @@ const returnsSection = document.getElementById("returnsSection");
 const boughtNavBtn = document.getElementById("boughtNavBtn");
 const returnsNavBtn = document.getElementById("returnsNavBtn");
 
-const messagesSection = document.getElementById("messagesSection");
-const messagesNavBtn = document.getElementById("messagesNavBtn");
-const chatListEl = document.getElementById("chatList");
-const chatsEmpty = document.getElementById("chatsEmpty");
-const chatPanel = document.getElementById("chatPanel");
-const chatTitle = document.getElementById("chatTitle");
-const chatWith = document.getElementById("chatWith");
-const chatMessagesEl = document.getElementById("chatMessages");
-const chatReplyInput = document.getElementById("chatReplyInput");
-
-let currentChat = null;
+// Debug: Log API URL and user on load
+console.log("API URL:", API);
+console.log("Logged in user:", loggedInUser);
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -657,7 +575,7 @@ function escapeHtml(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/'/g, "&#039;")
 }
 
 function isViewingOwnProfile() {
@@ -689,14 +607,13 @@ function renderAvatar(name, profileImage, size = "large") {
   }
   return `<div class="profile-avatar-fallback">${firstLetter}</div>`;
 }
-
+<!-- Edited by Vaughn -->
 function updateNavVisibility() {
   const ownProfile = isViewingOwnProfile();
 
   if (ownProfile) {
-    // Hidden the bought and returns buttons by setting display to none
-    boughtNavBtn.style.display = "none"; 
-    returnsNavBtn.style.display = "none";
+    boughtNavBtn.style.display = "inline-flex";
+    returnsNavBtn.style.display = "inline-flex";
     editProfileBtn.style.display = "inline-flex";
   } else {
     boughtNavBtn.style.display = "none";
@@ -754,34 +671,20 @@ async function uploadProfileImageIfNeeded() {
     return pendingProfileImageUrl || (currentProfileData ? currentProfileData.profile_image : "");
   }
 
-  const presignRes = await fetch(`${API}/api/uploads/profile-presign`, {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const uploadRes = await fetch(`${API}/api/uploads/profile`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      fileName: file.name,
-      fileType: file.type
-    })
+    body: formData
   });
-
-  const presignData = await presignRes.json();
-
-  if (!presignRes.ok) {
-    throw new Error(presignData.error || "Failed to create upload URL.");
-  }
-
-  const uploadRes = await fetch(presignData.uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": file.type
-    },
-    body: file
-  });
+  const uploadData = await uploadRes.json();
 
   if (!uploadRes.ok) {
-    throw new Error("Failed to upload image to S3.");
+    throw new Error(uploadData.error || "Failed to upload profile image.");
   }
 
-  return presignData.imageUrl;
+  return uploadData.imageUrl;
 }
 
 async function saveProfileChanges() {
@@ -865,7 +768,8 @@ function editListing(listingId) {
 function renderListingCard(item, options = {}) {
   const {
     isOwnProfile = false,
-    isBoughtItem = false
+    isBoughtItem = false,
+    isSellerView = false
   } = options;
 
   const safeTitle = escapeHtml(item.title);
@@ -882,6 +786,14 @@ function renderListingCard(item, options = {}) {
   let actionButtons = "";
   let extraInfo = "";
 
+  // Context badge
+  let contextBadge = "";
+  if (isBoughtItem) {
+    contextBadge = `<span class="badge" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.35);">As Buyer</span>`;
+  } else if (isSellerView) {
+    contextBadge = `<span class="badge" style="background:rgba(226,93,59,0.15);color:#e25d3b;border:1px solid rgba(226,93,59,0.35);">As Seller</span>`;
+  }
+
   // Modified: Removed the 'Mark as Sold' button logic
   if (!isBoughtItem && isOwnProfile && status === "active") {
     actionButtons = `
@@ -893,26 +805,17 @@ function renderListingCard(item, options = {}) {
   }
 
   
-
+  
   if (isBoughtItem) {
-    if (!returnStatus) {
-      // Modified: Removed the 'Request Return' button logic
-      actionButtons = ""; 
-    } else {
-      extraInfo += `<span class="badge ${escapeHtml(returnStatus)}">Return ${escapeHtml(returnStatus.charAt(0).toUpperCase() + returnStatus.slice(1))}</span>`;
-      if (safeReturnReason) {
-        extraInfo += `<div class="note-box"><p class="meta"><strong>Return Reason:</strong> ${safeReturnReason}</p></div>`;
-      }
-      if (safeSellerNote) {
-        extraInfo += `<div class="note-box"><p class="meta"><strong>Seller Response:</strong> ${safeSellerNote}</p></div>`;
-      }
-      if (item.return_created_at) {
-        extraInfo += `<p class="meta">Requested: ${escapeHtml(formatDate(item.return_created_at))}</p>`;
-      }
-      if (item.return_reviewed_at) {
-        extraInfo += `<p class="meta">Reviewed: ${escapeHtml(formatDate(item.return_reviewed_at))}</p>`;
-      }
-    }
+    // Always show "Request Return" button - buyer can request again after approval/denial
+    // Don't show return status badge on the card (that's in Return Requests section)
+    actionButtons = `
+      <div class="btn-row">
+        <button class="btn btn-warning" onclick="requestReturn(${Number(item.id)})">
+          Request Return
+        </button>
+      </div>
+    `;
   }
 
   let badgeClass = "active";
@@ -934,6 +837,7 @@ function renderListingCard(item, options = {}) {
         <h3>${safeTitle}</h3>
         <p class="meta">${safeCategory} • ${safeCondition}</p>
         <span class="badge ${badgeClass}">${badgeLabel}</span>
+        ${contextBadge}
         ${(!isBoughtItem && isOwnProfile && status === "sold" && safeBuyerEmail) ? `<p class="meta">Buyer: ${safeBuyerEmail}</p>` : ""}
         ${isBoughtItem ? `<p class="meta">Seller: ${escapeHtml(item.seller || "Unknown")}</p>` : ""}
         ${extraInfo}
@@ -943,19 +847,21 @@ function renderListingCard(item, options = {}) {
   `;
 }
 
-function renderReturnRequestCard(item) {
+function renderReturnRequestCard(item, options = {}) {
+  const { isBuyerView = false } = options;
   const safeTitle = escapeHtml(item.title);
   const safeCategory = escapeHtml(item.category);
   const safeCondition = escapeHtml(item.condition);
   const safeImage = escapeHtml(item.image);
   const safeBuyerEmail = escapeHtml(item.buyer_email || "");
+  const safeSeller = escapeHtml(item.seller || "Unknown");
   const safeReason = escapeHtml(item.reason || "");
   const safeSellerNote = escapeHtml(item.seller_note || "");
   const displayPrice = Number(item.price || 0).toFixed(2);
   const status = (item.status || "pending").toLowerCase();
 
   let buttons = "";
-  if (status === "pending") {
+  if (status === "pending" && !isBuyerView) {
     buttons = `
       <div class="btn-row">
         <button class="btn btn-success" onclick="reviewReturnRequest(${Number(item.id)}, 'approve')">Approve</button>
@@ -971,7 +877,7 @@ function renderReturnRequestCard(item) {
         <div class="price">$${displayPrice}</div>
         <h3>${safeTitle}</h3>
         <p class="meta">${safeCategory} • ${safeCondition}</p>
-        <p class="meta"><strong>Buyer:</strong> ${safeBuyerEmail}</p>
+        ${isBuyerView ? `<p class="meta"><strong>Seller:</strong> ${safeSeller}</p>` : `<p class="meta"><strong>Buyer:</strong> ${safeBuyerEmail}</p>`}
         <span class="badge ${status}">${escapeHtml(status.charAt(0).toUpperCase() + status.slice(1))}</span>
         <div class="note-box">
           <p class="meta"><strong>Reason:</strong> ${safeReason}</p>
@@ -997,18 +903,29 @@ async function loadBoughtItems() {
 
   try {
     const res = await fetch(`${API}/api/listings/bought/${encodeURIComponent(loggedInUser.email)}`);
+    if (!res.ok) {
+      throw new Error(`Could not load purchased items (HTTP ${res.status}).`);
+    }
     const boughtItems = await res.json();
 
     const list = Array.isArray(boughtItems) ? boughtItems : [];
+    
+    // Add debug info to each item
     boughtListingsEl.innerHTML = list.map(item => renderListingCard(item, {
       isOwnProfile: false,
       isBoughtItem: true
     })).join("");
 
     boughtEmpty.style.display = list.length ? "none" : "block";
+    boughtEmpty.textContent = "No purchased items found.";
+
+    if (window.location.hash === "#boughtSection") {
+      requestAnimationFrame(() => boughtSection.scrollIntoView({ behavior: "smooth" }));
+    }
   } catch (err) {
     console.error("Error loading bought items:", err);
     boughtListingsEl.innerHTML = "";
+    boughtEmpty.textContent = "Could not load purchased items. Please refresh and try again.";
     boughtEmpty.style.display = "block";
   }
 }
@@ -1051,157 +968,15 @@ async function loadSellerReturnRequests() {
   }
 }
 
-// ========================
-// MESSAGES
-// ========================
-function renderChatCard(chat) {
-  const safeTitle = escapeHtml(chat.listing_title);
-  const safeImage = escapeHtml(chat.listing_image);
-  const safeOther = escapeHtml(chat.other_username);
-  const preview = String(chat.last_message || "");
-  const shortPreview = preview.length > 80 ? preview.slice(0, 80) + "..." : preview;
-  const prefix = chat.last_message_from_me ? "You: " : "";
-  const unread = Number(chat.unread_count) || 0;
-
-  return `
-    <article class="card">
-      <img src="${safeImage}" alt="${safeTitle}">
-      <div class="card-body">
-        <h3>${safeTitle}</h3>
-        <p class="meta">With: ${safeOther}</p>
-        <p class="meta">${escapeHtml(prefix + shortPreview)}</p>
-        <p class="meta">${escapeHtml(formatDate(chat.last_message_time))}</p>
-        ${unread > 0 ? `<span class="badge pending">${unread} new</span>` : ""}
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="openChat(${Number(chat.listing_id)}, ${Number(chat.other_user_id)})">Open chat</button>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-async function loadChats() {
-  if (!loggedInUser || !loggedInUser.id || !isViewingOwnProfile()) {
-    messagesSection.style.display = "none";
-    messagesNavBtn.style.display = "none";
-    return;
-  }
-
-  messagesSection.style.display = "block";
-  messagesNavBtn.style.display = "inline-flex";
-
-  try {
-    const res = await fetch(`${API}/api/messages/chats?user_id=${loggedInUser.id}`);
-    const chats = await res.json();
-
-    const list = Array.isArray(chats) ? chats : [];
-    chatListEl.innerHTML = list.map(renderChatCard).join("");
-    chatsEmpty.style.display = list.length ? "none" : "block";
-  } catch (err) {
-    console.error("Error loading chats:", err);
-    chatListEl.innerHTML = "";
-    chatsEmpty.style.display = "block";
-  }
-}
-
-async function openChat(listingId, otherUserId) {
-  if (!loggedInUser || !loggedInUser.id) return;
-
-  currentChat = { listingId, otherUserId };
-
-  try {
-    const res = await fetch(
-      `${API}/api/messages/chat?user_id=${loggedInUser.id}&other_user_id=${otherUserId}&listing_id=${listingId}`
-    );
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Failed to open chat.");
-      return;
-    }
-
-    chatTitle.innerText = data.listing.title || "Chat";
-    chatWith.innerText = "Chatting with " + (data.other_user.username || "user");
-
-    chatMessagesEl.innerHTML = data.messages.length
-      ? data.messages.map(m => {
-          const mine = Number(m.sender_id) === Number(loggedInUser.id);
-          return `
-            <div class="chat-bubble ${mine ? "mine" : "theirs"}">
-              ${escapeHtml(m.body)}
-              <span class="chat-time">${escapeHtml(formatDate(m.created_at))}</span>
-            </div>
-          `;
-        }).join("")
-      : "<p class='meta'>No messages yet.</p>";
-
-    chatPanel.style.display = "block";
-    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-
-    // Mark messages sent to me as read, then refresh unread counts
-    await fetch(`${API}/api/messages/read`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: loggedInUser.id,
-        other_user_id: otherUserId,
-        listing_id: listingId
-      })
-    });
-
-    await loadChats();
-  } catch (err) {
-    console.error("Open chat error:", err);
-    alert("Error connecting to server.");
-  }
-}
-
-function refreshChat() {
-  if (currentChat) openChat(currentChat.listingId, currentChat.otherUserId);
-}
-
-function closeChat() {
-  currentChat = null;
-  chatPanel.style.display = "none";
-  chatReplyInput.value = "";
-}
-
-async function sendChatReply() {
-  if (!currentChat || !loggedInUser) return;
-
-  const body = chatReplyInput.value.trim();
-  if (!body) return;
-
-  try {
-    const res = await fetch(`${API}/api/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sender_id: loggedInUser.id,
-        receiver_id: currentChat.otherUserId,
-        listing_id: currentChat.listingId,
-        body
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Failed to send message.");
-      return;
-    }
-
-    chatReplyInput.value = "";
-    await openChat(currentChat.listingId, currentChat.otherUserId);
-  } catch (err) {
-    console.error("Send reply error:", err);
-    alert("Error connecting to server.");
-  }
-}
-
 async function loadProfile() {
   loggedInUser = JSON.parse(localStorage.getItem("user") || "null");
   updateNavVisibility();
+
+  // If no seller param but user is logged in, redirect to own profile
+  if (!seller && loggedInUser && loggedInUser.username) {
+    window.location.href = `profile.html?seller=${encodeURIComponent(loggedInUser.username)}`;
+    return;
+  }
 
   if (!seller) {
     profileName.innerText = "User Not Found";
@@ -1236,6 +1011,7 @@ async function loadProfile() {
     }
 
     const listingsRes = await fetch(`${API}/api/listings/by-seller/${encodeURIComponent(seller)}`);
+    if (!listingsRes.ok) throw new Error(`Could not load listings (HTTP ${listingsRes.status}).`);
     const listings = await listingsRes.json();
 
     const activeListings = Array.isArray(listings)
@@ -1257,7 +1033,8 @@ async function loadProfile() {
 
     soldListingsEl.innerHTML = soldListings.map(item => renderListingCard(item, {
       isOwnProfile: isViewingOwnProfile(),
-      isBoughtItem: false
+      isBoughtItem: false,
+      isSellerView: true
     })).join("");
 
     deletedListingsEl.innerHTML = deletedListings.map(item => renderListingCard(item, {
@@ -1269,9 +1046,6 @@ async function loadProfile() {
     soldEmpty.style.display = soldListings.length ? "none" : "block";
     deletedEmpty.style.display = deletedListings.length ? "none" : "block";
 
-    await loadBoughtItems();
-    await loadChats();
-    await loadSellerReturnRequests();
   } catch (err) {
     console.error(err);
     profileName.innerText = "Error Loading Profile";
@@ -1279,6 +1053,10 @@ async function loadProfile() {
     profileEmail.textContent = "";
     profileEmail.style.display = "none";
     profileAvatarWrap.innerHTML = renderAvatar("User", "", "large");
+  } finally {
+    // A seller-listing/profile error must not prevent the buyer's own purchases from loading.
+    await loadBoughtItems();
+    await loadSellerReturnRequests();
   }
 }
 
@@ -1288,35 +1066,35 @@ async function markAsSold(listingId) {
     return;
   }
 
-  const buyerEmail = prompt("Enter the buyer's email:");
-  if (!buyerEmail || !buyerEmail.trim()) {
-    return;
-  }
+  // Use custom modal instead of prompt()
+  showPrompt("Enter the buyer's email:", async (buyerEmail) => {
+    if (!buyerEmail || !buyerEmail.trim()) return;
 
-  try {
-    const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: loggedInUser.id,
-        role: loggedInUser.role,
-        buyer_email: buyerEmail.trim()
-      })
-    });
+    try {
+      const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: loggedInUser.id,
+          role: loggedInUser.role,
+          buyer_email: buyerEmail.trim()
+        })
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      alert(data.error || "Failed to mark listing as sold.");
-      return;
+      if (!res.ok) {
+        alert(data.error || "Failed to mark listing as sold.");
+        return;
+      }
+
+      alert("Listing marked as sold.");
+      loadProfile();
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
     }
-
-    alert("Listing marked as sold.");
-    loadProfile();
-  } catch (err) {
-    console.error(err);
-    alert("Error connecting to server.");
-  }
+  });
 }
 
 async function markAsActive(listingId) {
@@ -1383,42 +1161,109 @@ async function deleteListing(listingId) {
   }
 }
 
+// Custom modal to replace prompt() - works in all browser contexts
+function showPrompt(message, callback) {
+  // Remove any existing modal
+  const existing = document.getElementById("customPromptModal");
+  if (existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "customPromptModal";
+  modal.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+    z-index: 10000; font-family: system-ui, Arial, sans-serif;
+  `;
+  modal.innerHTML = `
+    <div style="background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+      <p style="margin: 0 0 16px; font-size: 1rem; color: #1d233e;">${escapeHtml(message)}</p>
+      <textarea id="promptInput" style="width: 100%; min-height: 80px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; resize: vertical; box-sizing: border-box;"></textarea>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+        <button id="promptCancel" class="btn btn-outline" style="padding: 10px 20px;">Cancel</button>
+        <button id="promptConfirm" class="btn btn-primary" style="padding: 10px 20px;">Submit</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const input = modal.querySelector("#promptInput");
+  const confirmBtn = modal.querySelector("#promptConfirm");
+  const cancelBtn = modal.querySelector("#promptCancel");
+
+  input.focus();
+
+  const cleanup = () => {
+    modal.remove();
+  };
+
+  const handleConfirm = () => {
+    const value = input.value.trim();
+    cleanup();
+    callback(value);
+  };
+
+  const handleCancel = () => {
+    cleanup();
+    callback(null);
+  };
+
+  confirmBtn.onclick = handleConfirm;
+  cancelBtn.onclick = handleCancel;
+  modal.onclick = (e) => { if (e.target === modal) handleCancel(); };
+  input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleConfirm(); } };
+}
+
 async function requestReturn(listingId) {
-  if (!loggedInUser || !loggedInUser.id || !loggedInUser.email) {
-    alert("Please sign in first.");
+  console.log("requestReturn called with listingId:", listingId);
+  console.log("loggedInUser:", loggedInUser);
+  
+  if (!loggedInUser) {
+    alert("Please sign in first. (No user in localStorage)");
+    return;
+  }
+  if (!loggedInUser.id) {
+    alert("Please sign in first. (User missing ID)");
+    return;
+  }
+  if (!loggedInUser.email) {
+    alert("Please sign in first. (User missing email)");
     return;
   }
 
-  const reason = prompt("Enter the reason for your return:");
-  if (!reason || !reason.trim()) {
-    return;
-  }
+  // Use custom modal instead of prompt()
+  showPrompt("Enter the reason for your return:", async (reason) => {
+    if (!reason) return; // User cancelled
 
-  try {
-    const res = await fetch(`${API}/api/returns/request`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        listing_id: listingId,
-        buyer_id: loggedInUser.id,
-        buyer_email: loggedInUser.email,
-        reason: reason.trim()
-      })
-    });
+    console.log("Submitting return request:", { listingId, buyer_id: loggedInUser.id, buyer_email: loggedInUser.email, reason });
 
-    const data = await res.json();
+    try {
+      const res = await fetch(`${API}/api/returns/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listing_id: listingId,
+          buyer_id: loggedInUser.id,
+          buyer_email: loggedInUser.email,
+          reason
+        })
+      });
 
-    if (!res.ok) {
-      alert(data.error || "Failed to submit return request.");
-      return;
+      console.log("Response status:", res.status);
+      const data = await res.json();
+      console.log("Response data:", data);
+
+      if (!res.ok) {
+        alert(data.error || `Failed to submit return request (HTTP ${res.status}).`);
+        return;
+      }
+
+      alert("Return request submitted successfully!");
+      loadProfile();
+    } catch (err) {
+      console.error("requestReturn error:", err);
+      alert("Error connecting to server. Check console for details.");
     }
-
-    alert("Return request submitted.");
-    loadProfile();
-  } catch (err) {
-    console.error(err);
-    alert("Error connecting to server.");
-  }
+  });
 }
 
 async function reviewReturnRequest(returnId, action) {
@@ -1428,29 +1273,125 @@ async function reviewReturnRequest(returnId, action) {
   }
 
   const label = action === "approve" ? "approve" : "deny";
-  const sellerNote = prompt(`Optional: enter a note to ${label} this return request:`) || "";
+
+  // Use custom modal instead of prompt()
+  showPrompt(`Optional: enter a note to ${label} this return request:`, async (sellerNote) => {
+    // sellerNote can be empty string (user clicked submit without typing) or null (cancelled)
+    if (sellerNote === null) return; // User cancelled
+
+    try {
+      const res = await fetch(`${API}/api/returns/${returnId}/review`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seller_id: loggedInUser.id,
+          role: loggedInUser.role,
+          action,
+          seller_note: sellerNote.trim()
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || `Failed to ${label} return request.`);
+        return;
+      }
+
+      alert(data.message || `Return request ${label}d.`);
+      loadProfile();
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
+  });
+}
+
+// ---- account deletion request (Makaila Williams) ----
+let myDeletionRequestId = null;
+
+// showDeletionState: fills the delete account box based on the latest request
+async function loadDeletionState() {
+  const section = document.getElementById("accountSection");
+  if (!isViewingOwnProfile()) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "block";
+
+  const statusEl = document.getElementById("deletionStatus");
+  const form = document.getElementById("deletionForm");
+  const cancelRow = document.getElementById("deletionCancel");
+  form.style.display = "none";
+  cancelRow.style.display = "none";
+  myDeletionRequestId = null;
 
   try {
-    const res = await fetch(`${API}/api/returns/${returnId}/review`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        seller_id: loggedInUser.id,
-        role: loggedInUser.role,
-        action,
-        seller_note: sellerNote.trim()
-      })
-    });
-
+    const res = await fetch(`${API}/api/account-requests/mine?user_id=${encodeURIComponent(loggedInUser.id)}`);
     const data = await res.json();
+    const req = data.request;
 
-    if (!res.ok) {
-      alert(data.error || `Failed to ${label} return request.`);
+    if (req && req.status === "pending") {
+      myDeletionRequestId = req.id;
+      statusEl.textContent = `Your deletion request is waiting for an admin (sent ${formatDate(req.created_at)}).`;
+      cancelRow.style.display = "flex";
       return;
     }
+    if (req && req.status === "denied") {
+      statusEl.textContent = "Your last request was denied." + (req.admin_note ? ` Admin note: ${req.admin_note}` : "") + " You can ask again below.";
+    } else {
+      statusEl.textContent = "Want your account gone? Send a request below.";
+    }
+    form.style.display = "block";
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Could not load your request status.";
+  }
+}
 
-    alert(data.message || `Return request ${label}d.`);
-    loadProfile();
+async function submitDeletionRequest() {
+  const password = document.getElementById("deletionPassword").value;
+  const reason = document.getElementById("deletionReason").value.trim();
+  if (!password) {
+    alert("Type your password to confirm.");
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/account-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: loggedInUser.id, password, reason })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Could not send the request.");
+      return;
+    }
+    document.getElementById("deletionPassword").value = "";
+    document.getElementById("deletionReason").value = "";
+    alert(data.message || "Request sent.");
+    loadDeletionState();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function cancelDeletionRequest() {
+  if (!myDeletionRequestId) return;
+  if (!confirm("Cancel your deletion request?")) return;
+  try {
+    const res = await fetch(`${API}/api/account-requests/${myDeletionRequestId}/cancel`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: loggedInUser.id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Could not cancel the request.");
+      return;
+    }
+    loadDeletionState();
   } catch (err) {
     console.error(err);
     alert("Error connecting to server.");
@@ -1458,6 +1399,7 @@ async function reviewReturnRequest(returnId, action) {
 }
 
 loadProfile();
+loadDeletionState();
 </script>
 </body>
 </html>
