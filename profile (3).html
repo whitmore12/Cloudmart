@@ -1,0 +1,1671 @@
+<!-- Created by Nickodemus Konde -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>User Profile | eCamp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: system-ui, Arial, sans-serif;
+  background: #f3f0e7;
+  color: #1d233e;
+  min-height: 100vh;
+}
+
+.site-header {
+  background: #ffffff;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(29,35,62,0.12);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1d233e;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.logo { height: 40px; }
+
+.back-btn {
+  border: 1px solid #e25d3b;
+  background: transparent;
+  color: #e25d3b;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.back-btn:hover { opacity: 0.85; }
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.hero {
+  background: #ffffff;
+  border: 1px solid rgba(29,35,62,0.10);
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 20px;
+}
+
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.hero-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.profile-avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(29,35,62,0.15);
+  background: #ffffff;
+}
+
+.profile-avatar-fallback {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid rgba(29,35,62,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #e25d3b;
+}
+
+.hero-text h1 {
+  font-size: 2rem;
+  color: #e25d3b;
+  margin-bottom: 10px;
+}
+
+.hero-text p {
+  color: #706b5f;
+  font-size: 1rem;
+}
+
+.profile-email {
+  margin-top: 8px;
+  font-size: 0.98rem;
+}
+
+.profile-email a {
+  color: #e25d3b;
+  text-decoration: none;
+}
+
+.profile-email a:hover {
+  text-decoration: underline;
+}
+
+.edit-profile-panel {
+  margin-top: 18px;
+  display: none;
+  background: rgba(29,35,62,0.05);
+  border: 1px solid rgba(29,35,62,0.10);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  color: #1d233e;
+  font-weight: 600;
+}
+
+.form-group input {
+  background: #ece7d6;
+  color: #1d233e;
+  border: 1px solid rgba(29,35,62,0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.form-group input[type="file"] {
+  padding: 8px;
+}
+
+.preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.preview-image {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(29,35,62,0.15);
+  background: #ffffff;
+}
+
+.preview-fallback {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid rgba(29,35,62,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #e25d3b;
+}
+
+.section-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  background: #ffffff;
+  border: 1px solid rgba(29,35,62,0.10);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.section-nav .btn {
+  flex: 0 0 auto;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-block {
+  scroll-margin-top: 95px;
+}
+
+/* In-app messaging (Emuesiri) */
+.chat-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 14px rgba(29,35,62,0.18);
+  cursor: pointer;
+}
+
+.chat-row img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #ece7d6;
+}
+
+.chat-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-row-preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-row.unread .chat-row-preview {
+  font-weight: 700;
+}
+
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  margin: 14px 0;
+}
+
+.bubble {
+  max-width: 75%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.bubble.mine {
+  align-self: flex-end;
+  background: #e25d3b;
+  color: #ffffff;
+}
+
+.bubble.theirs {
+  align-self: flex-start;
+  background: #ffffff;
+  border: 1px solid rgba(29,35,62,0.12);
+}
+
+.bubble .meta {
+  display: block;
+  font-size: 0.75rem;
+  color: inherit;
+  opacity: 0.75;
+}
+
+
+.section-title {
+  font-size: 1.5rem;
+  margin: 28px 0 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(29,35,62,0.18);
+  display: flex;
+  flex-direction: column;
+}
+
+.card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: #ece7d6;
+}
+
+.card-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.price {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.meta {
+  color: #706b5f;
+  font-size: 0.92rem;
+}
+
+.badge {
+  display: inline-block;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.badge.active {
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  border: 1px solid rgba(74,222,128,0.35);
+}
+
+.badge.sold {
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  border: 1px solid rgba(248,113,113,0.35);
+}
+
+.badge.pending {
+  background: rgba(245,158,11,0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.35);
+}
+
+.badge.approved {
+  background: rgba(59,130,246,0.15);
+  color: #e25d3b;
+  border: 1px solid rgba(226,93,59,0.35);
+}
+
+.badge.denied {
+  background: rgba(168,85,247,0.15);
+  color: #c084fc;
+  border: 1px solid rgba(192,132,252,0.35);
+}
+
+.badge.deleted {
+  background: rgba(107,114,128,0.18);
+  color: #706b5f;
+  border: 1px solid rgba(209,213,219,0.28);
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  flex: 1;
+}
+
+.btn-primary {
+  background: #e25d3b;
+  color: white;
+}
+
+.btn-secondary {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #e25d3b;
+  border: 1px solid rgba(226,93,59,0.55);
+}
+
+.btn-success {
+  background: #059669;
+  color: white;
+}
+
+.btn-warning {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.empty {
+  color: #706b5f;
+  padding: 10px 2px;
+}
+
+.note-box {
+  background: rgba(29,35,62,0.05);
+  border: 1px solid rgba(29,35,62,0.10);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 4px;
+}
+
+.subsection-title {
+  font-size: 1.2rem;
+  margin: 20px 0 12px;
+  color: #1d233e;
+}
+
+.helper-text {
+  color: #706b5f;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 850px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .edit-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .grid { grid-template-columns: 1fr; }
+  .site-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+}
+</style>
+  <link rel="icon" type="image/svg+xml" href="/Resources/eCampFavicon.svg">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">
+    <img src="/Resources/eCampLogo.svg" class="logo" alt="eCamp logo">
+    <span>eCamp</span>
+  </a>
+  <button class="back-btn" onclick="window.location.href='index.html'">← Back to Marketplace</button>
+</header>
+
+<main class="page">
+  <section class="hero">
+    <div class="hero-top">
+      <div class="hero-left">
+        <div id="profileAvatarWrap"></div>
+        <div class="hero-text">
+          <h1 id="profileName">Loading...</h1>
+          <p id="profileSub">Viewing this seller's listings.</p>
+          <p id="profileEmail" class="profile-email"></p>
+        </div>
+      </div>
+
+      <button id="editProfileBtn" class="btn btn-outline" style="display:none;" type="button" onclick="toggleEditProfile()">
+        Edit Profile
+      </button>
+    </div>
+
+    <div id="editProfilePanel" class="edit-profile-panel">
+      <div class="edit-grid">
+        <div class="form-group">
+          <label for="editUsername">Username</label>
+          <input id="editUsername" type="text" maxlength="50" placeholder="Enter new username" />
+        </div>
+
+        <div class="form-group">
+          <label for="editProfileImage">Profile Picture</label>
+          <input id="editProfileImage" type="file" accept="image/*" />
+        </div>
+      </div>
+
+      <div class="preview-wrap">
+        <div id="previewWrap"></div>
+        <span class="helper-text">Preview of your profile picture.</span>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn btn-primary" type="button" onclick="saveProfileChanges()">Save Changes</button>
+        <button class="btn btn-outline" type="button" onclick="toggleEditProfile(false)">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <nav class="section-nav" id="sectionNav">
+    <a href="#activeSection" class="btn btn-outline">Active Listings</a>
+    <a href="#soldSection" class="btn btn-outline">Sold Listings</a>
+    <a href="#deletedSection" class="btn btn-outline">Deleted Listings</a>
+    <a href="#boughtSection" class="btn btn-outline" id="boughtNavBtn" style="display:none;">Bought Items</a>
+    <a href="#messagesSection" class="btn btn-outline" id="messagesNavBtn" style="display:none;">Messages</a>
+    <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requests (Seller)</a>
+  </nav>
+
+  <section id="activeSection" class="section-block">
+    <h2 class="section-title">Active Listings</h2>
+    <div id="activeListings" class="grid"></div>
+    <p id="activeEmpty" class="empty" style="display:none;">No active listings found.</p>
+  </section>
+
+  <section id="soldSection" class="section-block">
+    <h2 class="section-title">Sold Listings</h2>
+    <div id="soldListings" class="grid"></div>
+    <p id="soldEmpty" class="empty" style="display:none;">No sold listings found.</p>
+  </section>
+
+  <section id="deletedSection" class="section-block">
+    <h2 class="section-title">Deleted Listings</h2>
+    <div id="deletedListings" class="grid"></div>
+    <p id="deletedEmpty" class="empty" style="display:none;">No deleted listings found.</p>
+  </section>
+
+  <section id="boughtSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Bought Items</h2>
+    <div id="boughtListings" class="grid"></div>
+    <p id="boughtEmpty" class="empty" style="display:none;">No purchased items found.</p>
+  </section>
+
+  <!-- In-app messaging, only shows on your own profile. Emuesiri -->
+  <section id="messagesSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Messages</h2>
+    <div id="chatListWrap">
+      <div id="chatList"></div>
+      <p id="messagesEmpty" class="empty" style="display:none;">No messages yet.</p>
+    </div>
+    <div id="chatView" class="note-box" style="display:none;"></div>
+  </section>
+
+  <section id="returnsSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Return Requests (As Seller)</h2>
+
+    <h3 class="subsection-title">Pending</h3>
+    <div id="pendingReturnRequests" class="grid"></div>
+    <p id="pendingEmpty" class="empty" style="display:none;">No pending requests.</p>
+
+    <h3 class="subsection-title">Denied</h3>
+    <div id="deniedReturnRequests" class="grid"></div>
+    <p id="deniedEmpty" class="empty" style="display:none;">No denied requests.</p>
+
+    <h3 class="subsection-title">Approved</h3>
+    <div id="approvedReturnRequests" class="grid"></div>
+    <p id="approvedEmpty" class="empty" style="display:none;">No approved requests.</p>
+  </section>
+
+  <!-- account deletion request, only shows on your own profile. Makaila Williams -->
+  <section id="accountSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Delete My Account</h2>
+    <div class="note-box">
+      <p id="deletionStatus" class="helper-text">Loading...</p>
+
+      <div id="deletionForm" style="display:none;">
+        <p class="helper-text">An admin has to approve this. Once they do, your listings come down and your name, email and picture are wiped. This cannot be undone.</p>
+        <div class="form-group" style="margin-top:10px;">
+          <label for="deletionReason">Why are you leaving? (optional)</label>
+          <input id="deletionReason" type="text" maxlength="500" placeholder="Tell the admins why" />
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label for="deletionPassword">Confirm with your password</label>
+          <input id="deletionPassword" type="password" autocomplete="current-password" />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" type="button" onclick="submitDeletionRequest()">Request Account Deletion</button>
+        </div>
+      </div>
+
+      <div id="deletionCancel" class="btn-row" style="display:none;">
+        <button class="btn btn-outline" type="button" onclick="cancelDeletionRequest()">Cancel My Request</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+
+<script>
+const API = window.location.origin;
+const DEFAULT_AVATAR = "https://ui-avatars.com/api/?background=0f172a&color=93c5fd&name=";
+
+const params = new URLSearchParams(window.location.search);
+const seller = params.get("seller");
+
+let loggedInUser = JSON.parse(localStorage.getItem("user") || "null");
+let currentProfileData = null;
+let pendingProfileImageUrl = "";
+
+const profileName = document.getElementById("profileName");
+const profileSub = document.getElementById("profileSub");
+const profileEmail = document.getElementById("profileEmail");
+const profileAvatarWrap = document.getElementById("profileAvatarWrap");
+const editProfileBtn = document.getElementById("editProfileBtn");
+const editProfilePanel = document.getElementById("editProfilePanel");
+const editUsername = document.getElementById("editUsername");
+const editProfileImage = document.getElementById("editProfileImage");
+const previewWrap = document.getElementById("previewWrap");
+
+const activeListingsEl = document.getElementById("activeListings");
+const soldListingsEl = document.getElementById("soldListings");
+const deletedListingsEl = document.getElementById("deletedListings");
+const boughtListingsEl = document.getElementById("boughtListings");
+
+const pendingReturnRequestsEl = document.getElementById("pendingReturnRequests");
+const deniedReturnRequestsEl = document.getElementById("deniedReturnRequests");
+const approvedReturnRequestsEl = document.getElementById("approvedReturnRequests");
+
+const activeEmpty = document.getElementById("activeEmpty");
+const soldEmpty = document.getElementById("soldEmpty");
+const deletedEmpty = document.getElementById("deletedEmpty");
+const boughtEmpty = document.getElementById("boughtEmpty");
+
+const pendingEmpty = document.getElementById("pendingEmpty");
+const deniedEmpty = document.getElementById("deniedEmpty");
+const approvedEmpty = document.getElementById("approvedEmpty");
+
+const boughtSection = document.getElementById("boughtSection");
+const messagesSection = document.getElementById("messagesSection");
+const messagesNavBtn = document.getElementById("messagesNavBtn");
+const chatListEl = document.getElementById("chatList");
+const chatViewEl = document.getElementById("chatView");
+const chatListWrap = document.getElementById("chatListWrap");
+const messagesEmpty = document.getElementById("messagesEmpty");
+const returnsSection = document.getElementById("returnsSection");
+const boughtNavBtn = document.getElementById("boughtNavBtn");
+const returnsNavBtn = document.getElementById("returnsNavBtn");
+
+// Debug: Log API URL and user on load
+console.log("API URL:", API);
+console.log("Logged in user:", loggedInUser);
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#1d233e;");
+}
+
+function isViewingOwnProfile() {
+  if (!loggedInUser || !loggedInUser.username || !seller) return false;
+  return loggedInUser.username.toLowerCase() === seller.toLowerCase();
+}
+
+function formatDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function renderAvatar(name, profileImage, size = "large") {
+  const avatarUrl = profileImage;
+  const safeName = escapeHtml(name || "User");
+  const firstLetter = safeName ? safeName.charAt(0).toUpperCase() : "U";
+
+  if (avatarUrl) {
+    if (size === "small") {
+      return `<img src="${escapeHtml(avatarUrl)}" alt="${safeName}" class="preview-image">`;
+    }
+    return `<img src="${escapeHtml(avatarUrl)}" alt="${safeName}" class="profile-avatar">`;
+  }
+
+  if (size === "small") {
+    return `<div class="preview-fallback">${firstLetter}</div>`;
+  }
+  return `<div class="profile-avatar-fallback">${firstLetter}</div>`;
+}
+<!-- Edited by Vaughn -->
+function updateNavVisibility() {
+  const ownProfile = isViewingOwnProfile();
+
+  if (ownProfile) {
+    boughtNavBtn.style.display = "inline-flex";
+    returnsNavBtn.style.display = "inline-flex";
+    messagesNavBtn.style.display = "inline-flex";
+    editProfileBtn.style.display = "inline-flex";
+  } else {
+    boughtNavBtn.style.display = "none";
+    returnsNavBtn.style.display = "none";
+    messagesNavBtn.style.display = "none";
+    editProfileBtn.style.display = "none";
+    editProfilePanel.style.display = "none";
+  }
+}
+
+function toggleEditProfile(forceState = null) {
+  if (!isViewingOwnProfile()) return;
+
+  const shouldOpen = forceState === null
+    ? editProfilePanel.style.display !== "block"
+    : forceState;
+
+  editProfilePanel.style.display = shouldOpen ? "block" : "none";
+
+  if (shouldOpen && currentProfileData) {
+    editUsername.value = currentProfileData.username || "";
+    pendingProfileImageUrl = currentProfileData.profile_image || "";
+    previewWrap.innerHTML = renderAvatar(
+      currentProfileData.username,
+      pendingProfileImageUrl,
+      "small"
+    );
+  }
+
+  if (!shouldOpen) {
+    editProfileImage.value = "";
+  }
+}
+
+function renderProfileHeader(userData) {
+  currentProfileData = userData;
+  profileName.innerText = userData.username;
+  profileAvatarWrap.innerHTML = renderAvatar(userData.username, userData.profile_image);
+
+  if (!isViewingOwnProfile() && userData.email) {
+    profileEmail.innerHTML = `<a href="mailto:${escapeHtml(userData.email)}">${escapeHtml(userData.email)}</a>`;
+    profileEmail.style.display = "block";
+  } else if (isViewingOwnProfile() && userData.email) {
+    profileEmail.innerHTML = `<a href="mailto:${escapeHtml(userData.email)}">${escapeHtml(userData.email)}</a>`;
+    profileEmail.style.display = "block";
+  } else {
+    profileEmail.textContent = "";
+    profileEmail.style.display = "none";
+  }
+}
+
+async function uploadProfileImageIfNeeded() {
+  const file = editProfileImage.files && editProfileImage.files[0];
+
+  if (!file) {
+    return pendingProfileImageUrl || (currentProfileData ? currentProfileData.profile_image : "");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const uploadRes = await fetch(`${API}/api/uploads/profile`, {
+    method: "POST",
+    body: formData
+  });
+  const uploadData = await uploadRes.json();
+
+  if (!uploadRes.ok) {
+    throw new Error(uploadData.error || "Failed to upload profile image.");
+  }
+
+  return uploadData.imageUrl;
+}
+
+async function saveProfileChanges() {
+  if (!loggedInUser || !currentProfileData || !isViewingOwnProfile()) {
+    alert("You can only edit your own profile.");
+    return;
+  }
+
+  const newUsername = editUsername.value.trim();
+  if (!newUsername) {
+    alert("Username is required.");
+    return;
+  }
+
+  try {
+    const finalProfileImage = await uploadProfileImageIfNeeded();
+
+    const res = await fetch(`${API}/api/users/${loggedInUser.id}/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role,
+        username: newUsername,
+        profile_image: finalProfileImage || ""
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to update profile.");
+      return;
+    }
+
+    loggedInUser = {
+      ...loggedInUser,
+      username: newUsername,
+      profile_image: finalProfileImage || null
+    };
+
+    localStorage.setItem("user", JSON.stringify(loggedInUser));
+
+    alert("Profile updated successfully.");
+
+    if (seller && seller.toLowerCase() !== newUsername.toLowerCase()) {
+      window.location.href = `profile.html?seller=${encodeURIComponent(newUsername)}`;
+      return;
+    }
+
+    toggleEditProfile(false);
+    await loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Error updating profile.");
+  }
+}
+
+editProfileImage.addEventListener("change", function () {
+  const file = this.files && this.files[0];
+  if (!file) {
+    previewWrap.innerHTML = renderAvatar(
+      currentProfileData?.username || "User",
+      pendingProfileImageUrl || currentProfileData?.profile_image || "",
+      "small"
+    );
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    previewWrap.innerHTML = `<img src="${escapeHtml(e.target.result)}" alt="Preview" class="preview-image">`;
+  };
+  reader.readAsDataURL(file);
+});
+
+function editListing(listingId) {
+  window.location.href = `create.html?edit=${listingId}`;
+}
+
+function renderListingCard(item, options = {}) {
+  const {
+    isOwnProfile = false,
+    isBoughtItem = false,
+    isSellerView = false
+  } = options;
+
+  const safeTitle = escapeHtml(item.title);
+  const safeCategory = escapeHtml(item.category);
+  const safeCondition = escapeHtml(item.condition);
+  const safeImage = escapeHtml(item.image);
+  const safeBuyerEmail = escapeHtml(item.buyer_email || "");
+  const safeReturnReason = escapeHtml(item.return_reason || "");
+  const safeSellerNote = escapeHtml(item.seller_note || "");
+  const displayPrice = Number(item.price || 0).toFixed(2);
+  const status = (item.status || "active").toLowerCase();
+  const returnStatus = (item.return_status || "").toLowerCase();
+
+  let actionButtons = "";
+  let extraInfo = "";
+
+  // Context badge
+  let contextBadge = "";
+  if (isBoughtItem) {
+    contextBadge = `<span class="badge" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.35);">As Buyer</span>`;
+  } else if (isSellerView) {
+    contextBadge = `<span class="badge" style="background:rgba(226,93,59,0.15);color:#e25d3b;border:1px solid rgba(226,93,59,0.35);">As Seller</span>`;
+  }
+
+  // Modified: Removed the 'Mark as Sold' button logic
+  if (!isBoughtItem && isOwnProfile && status === "active") {
+    actionButtons = `
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="editListing(${Number(item.id)})">Edit</button>
+        <button class="btn btn-secondary" onclick="markAsSold(${Number(item.id)})">Mark as Sold</button>
+      </div>
+    `;
+  }
+
+  
+  
+  if (isBoughtItem) {
+    // Always show "Request Return" button - buyer can request again after approval/denial
+    // Don't show return status badge on the card (that's in Return Requests section)
+    actionButtons = `
+      <div class="btn-row">
+        <button class="btn btn-warning" onclick="requestReturn(${Number(item.id)})">
+          Request Return
+        </button>
+        ${item.user_id != null ? `<button class="btn btn-outline" onclick="messageSeller(${Number(item.id)}, ${Number(item.user_id)})">Message Seller</button>` : ""}
+      </div>
+    `;
+  }
+
+  let badgeClass = "active";
+  let badgeLabel = "Active";
+
+  if (status === "sold") {
+    badgeClass = "sold";
+    badgeLabel = "Sold";
+  } else if (status === "deleted") {
+    badgeClass = "deleted";
+    badgeLabel = "Deleted";
+  }
+
+  return `
+    <article class="card">
+      <img src="${safeImage}" alt="${safeTitle}">
+      <div class="card-body">
+        <div class="price">$${displayPrice}</div>
+        <h3>${safeTitle}</h3>
+        <p class="meta">${safeCategory} • ${safeCondition}</p>
+        <span class="badge ${badgeClass}">${badgeLabel}</span>
+        ${contextBadge}
+        ${(!isBoughtItem && isOwnProfile && status === "sold" && safeBuyerEmail) ? `<p class="meta">Buyer: ${safeBuyerEmail}</p>` : ""}
+        ${isBoughtItem ? `<p class="meta">Seller: ${escapeHtml(item.seller || "Unknown")}</p>` : ""}
+        ${extraInfo}
+        ${actionButtons}
+      </div>
+    </article>
+  `;
+}
+
+function renderReturnRequestCard(item, options = {}) {
+  const { isBuyerView = false } = options;
+  const safeTitle = escapeHtml(item.title);
+  const safeCategory = escapeHtml(item.category);
+  const safeCondition = escapeHtml(item.condition);
+  const safeImage = escapeHtml(item.image);
+  const safeBuyerEmail = escapeHtml(item.buyer_email || "");
+  const safeSeller = escapeHtml(item.seller || "Unknown");
+  const safeReason = escapeHtml(item.reason || "");
+  const safeSellerNote = escapeHtml(item.seller_note || "");
+  const displayPrice = Number(item.price || 0).toFixed(2);
+  const status = (item.status || "pending").toLowerCase();
+
+  let buttons = "";
+  if (status === "pending" && !isBuyerView) {
+    buttons = `
+      <div class="btn-row">
+        <button class="btn btn-success" onclick="reviewReturnRequest(${Number(item.id)}, 'approve')">Approve</button>
+        <button class="btn btn-secondary" onclick="reviewReturnRequest(${Number(item.id)}, 'deny')">Deny</button>
+      </div>
+    `;
+  }
+
+  return `
+    <article class="card">
+      <img src="${safeImage}" alt="${safeTitle}">
+      <div class="card-body">
+        <div class="price">$${displayPrice}</div>
+        <h3>${safeTitle}</h3>
+        <p class="meta">${safeCategory} • ${safeCondition}</p>
+        ${isBuyerView ? `<p class="meta"><strong>Seller:</strong> ${safeSeller}</p>` : `<p class="meta"><strong>Buyer:</strong> ${safeBuyerEmail}</p>`}
+        <span class="badge ${status}">${escapeHtml(status.charAt(0).toUpperCase() + status.slice(1))}</span>
+        <div class="note-box">
+          <p class="meta"><strong>Reason:</strong> ${safeReason}</p>
+        </div>
+        <p class="meta">Requested: ${escapeHtml(formatDate(item.created_at))}</p>
+        ${safeSellerNote ? `<div class="note-box"><p class="meta"><strong>Seller Response:</strong> ${safeSellerNote}</p></div>` : ""}
+        ${item.reviewed_at ? `<p class="meta">Reviewed: ${escapeHtml(formatDate(item.reviewed_at))}</p>` : ""}
+        ${buttons}
+      </div>
+    </article>
+  `;
+}
+
+async function loadBoughtItems() {
+  if (!loggedInUser || !loggedInUser.email || !isViewingOwnProfile()) {
+    boughtSection.style.display = "none";
+    boughtNavBtn.style.display = "none";
+    return;
+  }
+
+  boughtSection.style.display = "block";
+  boughtNavBtn.style.display = "inline-flex";
+
+  try {
+    const res = await fetch(`${API}/api/listings/bought/${encodeURIComponent(loggedInUser.email)}`);
+    if (!res.ok) {
+      throw new Error(`Could not load purchased items (HTTP ${res.status}).`);
+    }
+    const boughtItems = await res.json();
+
+    const list = Array.isArray(boughtItems) ? boughtItems : [];
+    
+    // Add debug info to each item
+    boughtListingsEl.innerHTML = list.map(item => renderListingCard(item, {
+      isOwnProfile: false,
+      isBoughtItem: true
+    })).join("");
+
+    boughtEmpty.style.display = list.length ? "none" : "block";
+    boughtEmpty.textContent = "No purchased items found.";
+
+    if (window.location.hash === "#boughtSection") {
+      requestAnimationFrame(() => boughtSection.scrollIntoView({ behavior: "smooth" }));
+    }
+  } catch (err) {
+    console.error("Error loading bought items:", err);
+    boughtListingsEl.innerHTML = "";
+    boughtEmpty.textContent = "Could not load purchased items. Please refresh and try again.";
+    boughtEmpty.style.display = "block";
+  }
+}
+
+async function loadSellerReturnRequests() {
+  if (!loggedInUser || !loggedInUser.id || !isViewingOwnProfile()) {
+    returnsSection.style.display = "none";
+    returnsNavBtn.style.display = "none";
+    return;
+  }
+
+  returnsSection.style.display = "block";
+  returnsNavBtn.style.display = "inline-flex";
+
+  try {
+    const res = await fetch(`${API}/api/returns/seller/${loggedInUser.id}`);
+    const requests = await res.json();
+
+    const list = Array.isArray(requests) ? requests : [];
+
+    const pending = list.filter(item => (item.status || "").toLowerCase() === "pending");
+    const denied = list.filter(item => (item.status || "").toLowerCase() === "denied");
+    const approved = list.filter(item => (item.status || "").toLowerCase() === "approved");
+
+    pendingReturnRequestsEl.innerHTML = pending.map(renderReturnRequestCard).join("");
+    deniedReturnRequestsEl.innerHTML = denied.map(renderReturnRequestCard).join("");
+    approvedReturnRequestsEl.innerHTML = approved.map(renderReturnRequestCard).join("");
+
+    pendingEmpty.style.display = pending.length ? "none" : "block";
+    deniedEmpty.style.display = denied.length ? "none" : "block";
+    approvedEmpty.style.display = approved.length ? "none" : "block";
+  } catch (err) {
+    console.error("Error loading return requests:", err);
+    pendingReturnRequestsEl.innerHTML = "";
+    deniedReturnRequestsEl.innerHTML = "";
+    approvedReturnRequestsEl.innerHTML = "";
+    pendingEmpty.style.display = "block";
+    deniedEmpty.style.display = "block";
+    approvedEmpty.style.display = "block";
+  }
+}
+
+async function loadProfile() {
+  loggedInUser = JSON.parse(localStorage.getItem("user") || "null");
+  updateNavVisibility();
+
+  // If no seller param but user is logged in, redirect to own profile
+  if (!seller && loggedInUser && loggedInUser.username) {
+    window.location.href = `profile.html?seller=${encodeURIComponent(loggedInUser.username)}`;
+    return;
+  }
+
+  if (!seller) {
+    profileName.innerText = "User Not Found";
+    profileSub.innerText = "No seller was provided.";
+    profileEmail.textContent = "";
+    profileEmail.style.display = "none";
+    profileAvatarWrap.innerHTML = renderAvatar("User", "", "large");
+    return;
+  }
+
+  try {
+    const userRes = await fetch(`${API}/api/users/by-username/${encodeURIComponent(seller)}`);
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      renderProfileHeader(userData);
+
+      profileSub.innerText = isViewingOwnProfile()
+        ? "These are your active listings, sold listings, deleted listings, purchases, and return requests."
+        : `Viewing ${userData.username}'s active, sold, and deleted listings.`;
+
+      if (isViewingOwnProfile()) {
+        editUsername.value = userData.username || "";
+        pendingProfileImageUrl = userData.profile_image || "";
+        previewWrap.innerHTML = renderAvatar(userData.username, userData.profile_image, "small");
+      }
+    } else {
+      profileName.innerText = "User Not Found";
+      profileSub.innerText = "Viewing this seller's listings.";
+      profileEmail.textContent = "";
+      profileEmail.style.display = "none";
+      profileAvatarWrap.innerHTML = renderAvatar("User", "", "large");
+    }
+
+    const listingsRes = await fetch(`${API}/api/listings/by-seller/${encodeURIComponent(seller)}`);
+    if (!listingsRes.ok) throw new Error(`Could not load listings (HTTP ${listingsRes.status}).`);
+    const listings = await listingsRes.json();
+
+    const activeListings = Array.isArray(listings)
+      ? listings.filter(item => (item.status || "active").toLowerCase() === "active")
+      : [];
+
+    const soldListings = Array.isArray(listings)
+      ? listings.filter(item => (item.status || "active").toLowerCase() === "sold")
+      : [];
+
+    const deletedListings = Array.isArray(listings)
+      ? listings.filter(item => (item.status || "active").toLowerCase() === "deleted")
+      : [];
+
+    activeListingsEl.innerHTML = activeListings.map(item => renderListingCard(item, {
+      isOwnProfile: isViewingOwnProfile(),
+      isBoughtItem: false
+    })).join("");
+
+    soldListingsEl.innerHTML = soldListings.map(item => renderListingCard(item, {
+      isOwnProfile: isViewingOwnProfile(),
+      isBoughtItem: false,
+      isSellerView: true
+    })).join("");
+
+    deletedListingsEl.innerHTML = deletedListings.map(item => renderListingCard(item, {
+      isOwnProfile: isViewingOwnProfile(),
+      isBoughtItem: false
+    })).join("");
+
+    activeEmpty.style.display = activeListings.length ? "none" : "block";
+    soldEmpty.style.display = soldListings.length ? "none" : "block";
+    deletedEmpty.style.display = deletedListings.length ? "none" : "block";
+
+  } catch (err) {
+    console.error(err);
+    profileName.innerText = "Error Loading Profile";
+    profileSub.innerText = "Could not load seller information.";
+    profileEmail.textContent = "";
+    profileEmail.style.display = "none";
+    profileAvatarWrap.innerHTML = renderAvatar("User", "", "large");
+  } finally {
+    // A seller-listing/profile error must not prevent the buyer's own purchases from loading.
+    await loadBoughtItems();
+    await loadMessages();
+    await loadSellerReturnRequests();
+  }
+}
+
+
+// In-app messaging (Emuesiri)
+let openChatState = null;
+
+async function loadMessages() {
+  if (!isViewingOwnProfile() || !loggedInUser || !loggedInUser.id) {
+    messagesSection.style.display = "none";
+    messagesNavBtn.style.display = "none";
+    return;
+  }
+
+  messagesSection.style.display = "block";
+  messagesNavBtn.style.display = "inline-flex";
+
+  try {
+    const res = await fetch(`${API}/api/messages/chats?user_id=${encodeURIComponent(loggedInUser.id)}`);
+    if (!res.ok) throw new Error(`Could not load messages (HTTP ${res.status}).`);
+
+    const chats = await res.json();
+    const list = Array.isArray(chats) ? chats : [];
+
+    chatListEl.innerHTML = list.map(chat => {
+      const unread = Number(chat.unread_count || 0);
+      const preview = (chat.last_message_from_me ? "You: " : "") + (chat.last_message || "");
+
+      return `
+        <div class="chat-row ${unread ? "unread" : ""}" onclick="openChat(${Number(chat.listing_id)}, ${Number(chat.other_user_id)})">
+          <img src="${escapeHtml(chat.listing_image || "")}" alt="${escapeHtml(chat.listing_title)}">
+          <div class="chat-row-main">
+            <h3>${escapeHtml(chat.listing_title)}</h3>
+            <p class="meta">with ${escapeHtml(chat.other_username)} • ${escapeHtml(formatDate(chat.last_message_time))}</p>
+            <p class="chat-row-preview">${escapeHtml(preview)}</p>
+          </div>
+          ${unread ? `<span class="badge pending">${unread} new</span>` : ""}
+        </div>
+      `;
+    }).join("");
+
+    messagesEmpty.textContent = "No messages yet.";
+    messagesEmpty.style.display = list.length ? "none" : "block";
+
+    if (window.location.hash === "#messagesSection") {
+      requestAnimationFrame(() => messagesSection.scrollIntoView({ behavior: "smooth" }));
+    }
+  } catch (err) {
+    console.error("Error loading messages:", err);
+    chatListEl.innerHTML = "";
+    messagesEmpty.textContent = "Could not load messages. Please refresh and try again.";
+    messagesEmpty.style.display = "block";
+  }
+}
+
+async function openChat(listingId, otherUserId) {
+  if (!loggedInUser || !loggedInUser.id) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  openChatState = { listingId, otherUserId };
+
+  try {
+    const res = await fetch(
+      `${API}/api/messages/chat?user_id=${encodeURIComponent(loggedInUser.id)}&other_user_id=${encodeURIComponent(otherUserId)}&listing_id=${encodeURIComponent(listingId)}`
+    );
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || `Failed to open chat (HTTP ${res.status}).`);
+      return;
+    }
+
+    renderChat(data);
+
+    // Opening a chat marks the messages sent to me as read
+    await fetch(`${API}/api/messages/read`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        other_user_id: otherUserId,
+        listing_id: listingId
+      })
+    });
+  } catch (err) {
+    console.error("openChat error:", err);
+    alert("Error connecting to server.");
+  }
+}
+
+function renderChat(data) {
+  const myId = Number(loggedInUser.id);
+  const messages = Array.isArray(data.messages) ? data.messages : [];
+
+  const bubbles = messages.map(m => `
+    <div class="bubble ${Number(m.sender_id) === myId ? "mine" : "theirs"}">
+      ${escapeHtml(m.body)}
+      <span class="meta">${escapeHtml(formatDate(m.created_at))}</span>
+    </div>
+  `).join("");
+
+  chatViewEl.innerHTML = `
+    <h3>${escapeHtml(data.listing.title)}</h3>
+    <p class="helper-text">Chat with ${escapeHtml(data.other_user.username)}</p>
+    <div class="chat-thread">${bubbles || '<p class="empty">No messages yet.</p>'}</div>
+    <div class="btn-row">
+      <button class="btn btn-outline" type="button" onclick="closeChat()">Back</button>
+      <button class="btn btn-outline" type="button" onclick="openChat(${Number(data.listing.id)}, ${Number(data.other_user.id)})">Refresh</button>
+      <button class="btn btn-primary" type="button" onclick="replyInChat()">Reply</button>
+    </div>
+  `;
+
+  chatListWrap.style.display = "none";
+  chatViewEl.style.display = "block";
+
+  const thread = chatViewEl.querySelector(".chat-thread");
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function closeChat() {
+  openChatState = null;
+  chatViewEl.style.display = "none";
+  chatListWrap.style.display = "block";
+  loadMessages();
+}
+
+function replyInChat() {
+  if (!openChatState) return;
+  sendMessage(openChatState.listingId, openChatState.otherUserId, "Enter your message:");
+}
+
+// Start a chat with a seller from a Bought Items card
+function messageSeller(listingId, sellerId) {
+  sendMessage(listingId, sellerId, "Enter your message to the seller:");
+}
+
+function sendMessage(listingId, receiverId, promptText) {
+  if (!loggedInUser || !loggedInUser.id) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  showPrompt(promptText, async (body) => {
+    if (!body) return; // User cancelled
+
+    try {
+      const res = await fetch(`${API}/api/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender_id: loggedInUser.id,
+          receiver_id: receiverId,
+          listing_id: listingId,
+          body
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || `Failed to send message (HTTP ${res.status}).`);
+        return;
+      }
+
+      messagesSection.scrollIntoView({ behavior: "smooth" });
+      await openChat(listingId, receiverId);
+    } catch (err) {
+      console.error("sendMessage error:", err);
+      alert("Error connecting to server.");
+    }
+  });
+}
+
+async function markAsSold(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  // Use custom modal instead of prompt()
+  showPrompt("Enter the buyer's email:", async (buyerEmail) => {
+    if (!buyerEmail || !buyerEmail.trim()) return;
+
+    try {
+      const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: loggedInUser.id,
+          role: loggedInUser.role,
+          buyer_email: buyerEmail.trim()
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "Failed to mark listing as sold.");
+        return;
+      }
+
+      alert("Listing marked as sold.");
+      loadProfile();
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
+  });
+}
+
+async function markAsActive(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}/mark-active`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to move listing back to active.");
+      return;
+    }
+
+    alert("Listing moved back to active.");
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function deleteListing(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  if (!confirm("Are you sure you want to move this listing to deleted?")) return;
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to delete listing.");
+      return;
+    }
+
+    alert(data.message || "Listing moved to deleted.");
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+// Custom modal to replace prompt() - works in all browser contexts
+function showPrompt(message, callback) {
+  // Remove any existing modal
+  const existing = document.getElementById("customPromptModal");
+  if (existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "customPromptModal";
+  modal.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+    z-index: 10000; font-family: system-ui, Arial, sans-serif;
+  `;
+  modal.innerHTML = `
+    <div style="background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+      <p style="margin: 0 0 16px; font-size: 1rem; color: #1d233e;">${escapeHtml(message)}</p>
+      <textarea id="promptInput" style="width: 100%; min-height: 80px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; resize: vertical; box-sizing: border-box;"></textarea>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+        <button id="promptCancel" class="btn btn-outline" style="padding: 10px 20px;">Cancel</button>
+        <button id="promptConfirm" class="btn btn-primary" style="padding: 10px 20px;">Submit</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const input = modal.querySelector("#promptInput");
+  const confirmBtn = modal.querySelector("#promptConfirm");
+  const cancelBtn = modal.querySelector("#promptCancel");
+
+  input.focus();
+
+  const cleanup = () => {
+    modal.remove();
+  };
+
+  const handleConfirm = () => {
+    const value = input.value.trim();
+    cleanup();
+    callback(value);
+  };
+
+  const handleCancel = () => {
+    cleanup();
+    callback(null);
+  };
+
+  confirmBtn.onclick = handleConfirm;
+  cancelBtn.onclick = handleCancel;
+  modal.onclick = (e) => { if (e.target === modal) handleCancel(); };
+  input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleConfirm(); } };
+}
+
+async function requestReturn(listingId) {
+  console.log("requestReturn called with listingId:", listingId);
+  console.log("loggedInUser:", loggedInUser);
+  
+  if (!loggedInUser) {
+    alert("Please sign in first. (No user in localStorage)");
+    return;
+  }
+  if (!loggedInUser.id) {
+    alert("Please sign in first. (User missing ID)");
+    return;
+  }
+  if (!loggedInUser.email) {
+    alert("Please sign in first. (User missing email)");
+    return;
+  }
+
+  // Use custom modal instead of prompt()
+  showPrompt("Enter the reason for your return:", async (reason) => {
+    if (!reason) return; // User cancelled
+
+    console.log("Submitting return request:", { listingId, buyer_id: loggedInUser.id, buyer_email: loggedInUser.email, reason });
+
+    try {
+      const res = await fetch(`${API}/api/returns/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listing_id: listingId,
+          buyer_id: loggedInUser.id,
+          buyer_email: loggedInUser.email,
+          reason
+        })
+      });
+
+      console.log("Response status:", res.status);
+      const data = await res.json();
+      console.log("Response data:", data);
+
+      if (!res.ok) {
+        alert(data.error || `Failed to submit return request (HTTP ${res.status}).`);
+        return;
+      }
+
+      alert("Return request submitted successfully!");
+      loadProfile();
+    } catch (err) {
+      console.error("requestReturn error:", err);
+      alert("Error connecting to server. Check console for details.");
+    }
+  });
+}
+
+async function reviewReturnRequest(returnId, action) {
+  if (!loggedInUser || !loggedInUser.id) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  const label = action === "approve" ? "approve" : "deny";
+
+  // Use custom modal instead of prompt()
+  showPrompt(`Optional: enter a note to ${label} this return request:`, async (sellerNote) => {
+    // sellerNote can be empty string (user clicked submit without typing) or null (cancelled)
+    if (sellerNote === null) return; // User cancelled
+
+    try {
+      const res = await fetch(`${API}/api/returns/${returnId}/review`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seller_id: loggedInUser.id,
+          role: loggedInUser.role,
+          action,
+          seller_note: sellerNote.trim()
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || `Failed to ${label} return request.`);
+        return;
+      }
+
+      alert(data.message || `Return request ${label}d.`);
+      loadProfile();
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
+  });
+}
+
+// ---- account deletion request (Makaila Williams) ----
+let myDeletionRequestId = null;
+
+// showDeletionState: fills the delete account box based on the latest request
+async function loadDeletionState() {
+  const section = document.getElementById("accountSection");
+  if (!isViewingOwnProfile()) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "block";
+
+  const statusEl = document.getElementById("deletionStatus");
+  const form = document.getElementById("deletionForm");
+  const cancelRow = document.getElementById("deletionCancel");
+  form.style.display = "none";
+  cancelRow.style.display = "none";
+  myDeletionRequestId = null;
+
+  try {
+    const res = await fetch(`${API}/api/account-requests/mine?user_id=${encodeURIComponent(loggedInUser.id)}`);
+    const data = await res.json();
+    const req = data.request;
+
+    if (req && req.status === "pending") {
+      myDeletionRequestId = req.id;
+      statusEl.textContent = `Your deletion request is waiting for an admin (sent ${formatDate(req.created_at)}).`;
+      cancelRow.style.display = "flex";
+      return;
+    }
+    if (req && req.status === "denied") {
+      statusEl.textContent = "Your last request was denied." + (req.admin_note ? ` Admin note: ${req.admin_note}` : "") + " You can ask again below.";
+    } else {
+      statusEl.textContent = "Want your account gone? Send a request below.";
+    }
+    form.style.display = "block";
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Could not load your request status.";
+  }
+}
+
+async function submitDeletionRequest() {
+  const password = document.getElementById("deletionPassword").value;
+  const reason = document.getElementById("deletionReason").value.trim();
+  if (!password) {
+    alert("Type your password to confirm.");
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/account-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: loggedInUser.id, password, reason })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Could not send the request.");
+      return;
+    }
+    document.getElementById("deletionPassword").value = "";
+    document.getElementById("deletionReason").value = "";
+    alert(data.message || "Request sent.");
+    loadDeletionState();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function cancelDeletionRequest() {
+  if (!myDeletionRequestId) return;
+  if (!confirm("Cancel your deletion request?")) return;
+  try {
+    const res = await fetch(`${API}/api/account-requests/${myDeletionRequestId}/cancel`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: loggedInUser.id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Could not cancel the request.");
+      return;
+    }
+    loadDeletionState();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+loadProfile();
+loadDeletionState();
+</script>
+</body>
+</html>
