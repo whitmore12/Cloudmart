@@ -1,0 +1,20 @@
+# Elastic Beanstalk bundle exclusions.
+# When this file exists the EB CLI uses it instead of .gitignore.
+.git/
+.github/
+.elasticbeanstalk/
+.vscode/
+venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+.DS_Store
+Change_logs/
+note.md
+tests/
+
+# Never ship private keys to EB; instances use the IAM instance profile.
+Resources/*.pem
+Resources/*.pub

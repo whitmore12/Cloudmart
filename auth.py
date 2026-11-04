@@ -1,5 +1,5 @@
 """
-CloudMart Authentication Utilities
+eCamp Authentication Utilities
 Standalone script for testing user creation via SSH tunnel to RDS
 """
 

@@ -1,24 +1,15 @@
 """
-CloudMart Database Configuration
+eCamp Database Configuration
 Connects to AWS RDS PostgreSQL via SSH tunnel through EC2
 
 Edited by vaughn huey 9/24/26
 
-To be able to query the database use these commands:
-        ssh -i ./Resources/cloudpair.pem \
-            -L 5434:ecamp-1.cv4gm4m8scfb.us-east-2.rds.amazonaws.com:5432 \
-            -N -f \
-            ec2-user@3.148.171.237
+To query the database locally, tunnel through the EC2 bastion using the
+values in your .env file:
+        ssh -i "$SSH_KEY_PATH" -L 5434:"$RDS_HOST":5432 -N -f ec2-user@"$SSH_HOST"
+        psql -h 127.0.0.1 -p 5434 -U "$DB_USER" -d "$DB_NAME"
 
-        psql -h 127.0.0.1 -p 5434 -U postgres -d postgres
-
-To exit the session cleanly:
-            \q
-
-            or use
-
-            exit
-
+To exit the psql session cleanly, type: exit
 """
 
 import os

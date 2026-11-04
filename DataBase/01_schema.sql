@@ -1,4 +1,4 @@
--- CloudMart Database Schema
+-- eCamp Database Schema
 -- Users table for authentication
 
 CREATE TABLE users (

@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>User Profile | CloudMart</title>
+<title>User Profile | eCamp</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -473,8 +473,8 @@ body {
 <body>
 <header class="site-header">
   <a class="brand" href="index.html">
-    <img src="https://cloudmart-images.s3.us-east-2.amazonaws.com/Logo.png" class="logo" alt="CloudMart Logo">
-    <span>CloudMart</span>
+    <img src="/Resources/eCampLogo.svg" class="logo" alt="eCamp logo">
+    <span>eCamp</span>
   </a>
   <button class="back-btn" onclick="window.location.href='index.html'">← Back to Marketplace</button>
 </header>
@@ -596,7 +596,7 @@ body {
 </main>
 
 <script>
-const API = "http://localhost:5001";
+const API = window.location.origin;
 const DEFAULT_AVATAR = "https://ui-avatars.com/api/?background=0f172a&color=93c5fd&name=";
 
 const params = new URLSearchParams(window.location.search);

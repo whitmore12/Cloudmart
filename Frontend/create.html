@@ -110,8 +110,8 @@
   </div>
 
   <script>
-    // Use CloudFront HTTPS URL for secure API calls
-    const API = "https://d2h2xplm1feih8.cloudfront.net";
+    // Same-origin API calls; works on localhost and on the EB environment URL.
+    const API = window.location.origin;
 
     const params = new URLSearchParams(window.location.search);
     const editId = params.get("edit");

@@ -1,9 +1,13 @@
-# Cloud-Mart
+# eCamp
 
 A cloud-based campus marketplace for Hampton University students.
 
 # Deployed Link
-http://cloudmart-env.eba-wbku2kbr.us-east-1.elasticbeanstalk.com/index.html
+http://ecamp-env.<region>.elasticbeanstalk.com/index.html
+
+> The URL above is a placeholder. After `eb create` it will be the
+> environment URL printed by the EB CLI (for example
+> `ecamp-env.us-east-1.elasticbeanstalk.com`).
 
 
 ## Prerequisites
@@ -79,7 +83,7 @@ Open your browser and copy the file path of where your Signin.html is and paste 
 
 ```
 CMFINAL/
-├── app.py                 # Flask backend server & API routes
+├── application.py         # Flask backend server & API routes (EB entrypoint)
 ├── auth.py                # Authentication utilities
 ├── s3_config.py           # AWS S3 configuration
 ├── requirements.txt       # Python dependencies
@@ -128,8 +132,94 @@ CMFINAL/
 - [ ] `Resources/ec2Test.pem` file present
 - [ ] Virtual environment created and activated
 - [ ] Dependencies installed
-- [ ] Run with `python app.py`
+- [ ] Run with `python application.py`
 - [ ] Open http://localhost:5001 in browser
+
+## Deploying to Elastic Beanstalk (eCamp)
+
+Everything account-specific is supplied through environment variables, so
+moving to a new AWS account requires **no code changes**.
+
+### Names used by the deployment
+
+| Resource | Name |
+|----------|------|
+| EB application | `ecamp` |
+| EB environment | `ecamp-env` |
+| RDS database | `ecamp` |
+| RDS master user | `ecamp` |
+| S3 bucket | `ecamp-images-<unique-suffix>` |
+
+### 1. One-time AWS setup (new account)
+
+```bash
+aws configure                      # new account access key
+aws s3 mb s3://ecamp-images-<unique-suffix> --region us-east-1
+```
+
+Keep the bucket private; the Flask backend streams images through
+`/api/listing-images/...` and `/api/profile-images/...`.
+
+Create an RDS PostgreSQL instance (free-tier: `db.t3.micro`, 20 GB,
+single-AZ) in the same VPC as Elastic Beanstalk:
+
+- DB name: `ecamp`
+- Master username: `ecamp`
+- Allow port `5432` from the EB environment's security group.
+
+### 2. Create the EB application and environment
+
+```bash
+eb init ecamp --platform python-3.11 --region us-east-1
+eb create ecamp-env --single
+```
+
+### 3. Set environment properties (secrets live here, not in Git)
+
+```bash
+eb setenv \
+  AWS_REGION=us-east-1 \
+  USE_SSH_TUNNEL=false \
+  BUCKET_NAME=ecamp-images-<unique-suffix> \
+  DB_HOST=<rds-endpoint> \
+  DB_NAME=ecamp \
+  DB_USER=ecamp \
+  DB_PASSWORD=<db-password> \
+  ADMIN_BOOTSTRAP_TOKEN=<random-token> \
+  SMTP_USER=<gmail-address> \
+  SMTP_PASSWORD=<gmail-app-password> \
+  APP_BASE_URL=http://ecamp-env.us-east-1.elasticbeanstalk.com
+```
+
+Grant the EB EC2 instance profile (`aws-elasticbeanstalk-ec2-role`)
+`s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the bucket. No AWS
+access keys are needed on the instance.
+
+### 4. Deploy
+
+```bash
+eb deploy ecamp-env
+eb status ecamp-env        # green/Ready
+eb logs                    # if it fails
+```
+
+### 5. Database schema
+
+The schema is created automatically by `init_db()` on the first database
+connection, so a brand-new empty database needs no manual SQL. Existing
+data can be copied with:
+
+```bash
+pg_dump -h <old-host> -U <old-user> -d <old-db> --no-owner --no-acl -Fc -f ecamp.dump
+pg_restore -h <new-rds-endpoint> -U ecamp -d ecamp --no-owner --no-acl ecamp.dump
+```
+
+`init_db()` adds any newer columns (`pirate_dollars`, `transactions`,
+`password_resets`, etc.) on the next connection.
+
+> `Resources/*.pem` and `venv/` are excluded from the EB bundle by
+> `.ebignore`. Do not re-add private keys to the repository; rotate any key
+> that has already been committed.
 
 ## Troubleshooting
 
@@ -155,4 +245,4 @@ chmod 600 Resources/ec2Test.pem
 pip install flask flask-cors sshtunnel psycopg bcrypt python-dotenv boto3
 ```
 
-# Cloudmart
+# eCamp
