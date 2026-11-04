@@ -27,39 +27,45 @@ load_dotenv()
 from s3_config import s3, BUCKET_NAME, AWS_REGION
 from account_requests import initAccountRequests
 
-app = Flask(__name__)
-# Explicit WSGI alias for Vercel's Python entrypoint detector.
-handler = app
-CORS(app)
+application = Flask(__name__)
+# WSGI alias for platforms/hosts that look for `handler` instead of `application`
+handler = application
+CORS(application)
 
 
-@app.get("/")
+@application.get("/")
 def homepage():
     return send_from_directory("Frontend", "index.html")
 
 
-@app.get("/Resources/<path:filename>")
+@application.get("/Resources/<path:filename>")
 def resource_file(filename):
     return send_from_directory("Resources", filename)
 
 
-@app.get("/<path:filename>")
+@application.get("/<path:filename>")
 def frontend_file(filename):
     return send_from_directory("Frontend", filename)
 
 # Database & Tunnel Configuration
-SSH_HOST = os.getenv("SSH_HOST")
-SSH_USER = os.getenv("SSH_USER")
-SSH_KEY_PATH = os.getenv("SSH_KEY_PATH")
-# RDS Configuration
-RDS_HOST = os.getenv("RDS_HOST")
-RDS_PORT = 5432
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER =os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+SSH_HOST = os.environ.get("SSH_HOST")
+SSH_USER = os.environ.get("SSH_USER")
+SSH_KEY_PATH = os.environ.get("SSH_KEY_PATH")
+
+# RDS Configuration - EB provides RDS_* vars, we also support DB_* vars
+RDS_HOST = os.environ.get("RDS_HOST") or os.environ.get("RDS_HOSTNAME")
+RDS_PORT = int(os.environ.get("RDS_PORT", "5432"))
+DB_HOST = os.environ.get("DB_HOST") or os.environ.get("RDS_HOSTNAME")
+DB_NAME = os.environ.get("DB_NAME") or os.environ.get("RDS_DB_NAME")
+DB_USER = os.environ.get("DB_USER") or os.environ.get("RDS_USERNAME")
+DB_PASSWORD = os.environ.get("DB_PASSWORD") or os.environ.get("RDS_PASSWORD")
+
+# Use SSH tunnel for local development, direct connection for EB
+USE_SSH_TUNNEL = os.environ.get("USE_SSH_TUNNEL", "true").lower() == "true"
+
 
 tunnel = None
+_db_initialized = False
 
 
 def start_ssh_tunnel():
@@ -76,15 +82,52 @@ def start_ssh_tunnel():
     return tunnel
 
 
-def get_db_connection():
-    tun = start_ssh_tunnel()
+def _connect_db():
+    """Open a raw database connection (no auto-init)."""
+    if USE_SSH_TUNNEL:
+        # Local development: use SSH tunnel
+        tun = start_ssh_tunnel()
+        return psycopg.connect(
+            host="127.0.0.1",
+            port=tun.local_bind_port,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD
+        )
+    # Production (EB): direct connection to RDS
     return psycopg.connect(
-        host="127.0.0.1",
-        port=tun.local_bind_port,
+        host=DB_HOST,
+        port=RDS_PORT,
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASSWORD
     )
+
+
+def get_db_connection():
+    global _db_initialized
+    conn = _connect_db()
+
+    # Auto-initialize database on first connection if tables don't exist
+    if not _db_initialized:
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM users LIMIT 1")
+            cur.close()
+            _db_initialized = True
+        except Exception:
+            # Tables don't exist yet. init_db() opens its own connection, so
+            # this cannot recurse back into get_db_connection().
+            conn.close()
+            try:
+                init_db()
+                _db_initialized = True
+                print("Database initialized on first connection")
+            except Exception as e:
+                print(f"Auto-init failed: {e}")
+            conn = _connect_db()
+
+    return conn
 
 def log_action(who, action, target):
     """Logs an action to the action_logs database table."""
@@ -98,7 +141,7 @@ def log_action(who, action, target):
         conn.commit()
     except Exception as e:
         conn.rollback()
-        app.logger.error(f"Failed to record action log: {e}")
+        application.logger.error(f"Failed to record action log: {e}")
     finally:
         cur.close()
         conn.close()
@@ -111,11 +154,11 @@ def remove_profile_image(image_url):
 
 
 # the lambda looks get_db_connection up each time so tests can swap it
-initAccountRequests(app, lambda: get_db_connection(), remove_profile_image, log_action)
+initAccountRequests(application, lambda: get_db_connection(), remove_profile_image, log_action)
 
 
 def init_db():
-    conn = get_db_connection()
+    conn = _connect_db()
     cur = conn.cursor()
 
     cur.execute("""
@@ -126,6 +169,7 @@ def init_db():
         password_hash TEXT,
         role VARCHAR(20) DEFAULT 'user',
         profile_image TEXT,
+        pirate_dollars NUMERIC DEFAULT 100.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -261,7 +305,7 @@ def init_db():
 # ========================
 # AUTH
 # ========================
-@app.route("/api/auth/register", methods=["POST"])
+@application.route("/api/auth/register", methods=["POST"])
 def register():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
@@ -298,7 +342,7 @@ def register():
         conn.close()
 
 
-@app.get("/api/auth/admin-setup-status")
+@application.get("/api/auth/admin-setup-status")
 def admin_setup_status():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -311,7 +355,7 @@ def admin_setup_status():
         conn.close()
 
 
-@app.post("/api/auth/create-admin")
+@application.post("/api/auth/create-admin")
 def create_admin():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
@@ -363,7 +407,7 @@ def create_admin():
         conn.rollback()
         if getattr(e, "sqlstate", None) == "23505":
             return jsonify({"error": "That email or username is already in use."}), 409
-        app.logger.exception("Admin account creation failed")
+        application.logger.exception("Admin account creation failed")
         return jsonify({"error": "Could not create the admin account."}), 500
     finally:
         cur.close()
@@ -378,7 +422,7 @@ MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATIONS = [60, 300, 600, 900]  # 1m, 5m, 10m, 15m
 
 
-@app.route("/api/auth/login", methods=["POST"])
+@application.route("/api/auth/login", methods=["POST"])
 def login():
     data = request.get_json()
     username = data.get("username") or ""
@@ -429,7 +473,7 @@ def login():
 # ========================
 
 
-@app.route("/api/auth/forgot-password", methods=["POST"])
+@application.route("/api/auth/forgot-password", methods=["POST"])
 def forgot_password():
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
@@ -458,7 +502,7 @@ def forgot_password():
             try:
                 send_reset_email(email, link)
             except Exception as e:
-                app.logger.error(f"Email send failed: {e}")
+                application.logger.error(f"Email send failed: {e}")
     finally:
         cur.close()
         conn.close()
@@ -466,7 +510,7 @@ def forgot_password():
     return jsonify(generic), 200
 
 
-@app.route("/api/auth/reset-password", methods=["POST"])
+@application.route("/api/auth/reset-password", methods=["POST"])
 def reset_password():
     data = request.get_json() or {}
     token = data.get("token") or ""
@@ -499,7 +543,7 @@ def reset_password():
 
     return jsonify({"message": "Password updated"}), 200
 
-@app.route("/api/uploads/presign", methods=["POST", "OPTIONS"])
+@application.route("/api/uploads/presign", methods=["POST", "OPTIONS"])
 def generate_presigned_upload_url():
     if request.method == "OPTIONS":
         return jsonify({"ok": True}), 200
@@ -536,7 +580,7 @@ def generate_presigned_upload_url():
         return jsonify({"error": str(e)}), 500
 
 #Nickodemus
-@app.route("/api/uploads/profile-presign", methods=["POST", "OPTIONS"])
+@application.route("/api/uploads/profile-presign", methods=["POST", "OPTIONS"])
 def generate_profile_presigned_upload_url():
     if request.method == "OPTIONS":
         return jsonify({"ok": True}), 200
@@ -573,7 +617,7 @@ def generate_profile_presigned_upload_url():
         return jsonify({"error": str(e)}), 500
 
 
-@app.post("/api/uploads/profile")
+@application.post("/api/uploads/profile")
 def upload_profile_image():
     image = request.files.get("file")
     if not image or not image.filename:
@@ -597,11 +641,11 @@ def upload_profile_image():
         )
         return jsonify({"imageUrl": f"/api/profile-images/{key}"}), 200
     except Exception as e:
-        app.logger.exception("Profile image upload failed")
+        application.logger.exception("Profile image upload failed")
         return jsonify({"error": "Could not upload profile image to S3."}), 500
 
 
-@app.get("/api/profile-images/<path:key>")
+@application.get("/api/profile-images/<path:key>")
 def serve_profile_image(key):
     if not key.startswith("profiles/"):
         return jsonify({"error": "Image not found."}), 404
@@ -617,7 +661,7 @@ def serve_profile_image(key):
         return jsonify({"error": "Image not found."}), 404
 
 
-@app.post("/api/uploads/listing")
+@application.post("/api/uploads/listing")
 def upload_listing_image():
     image = request.files.get("file")
     if not image or not image.filename:
@@ -633,11 +677,11 @@ def upload_listing_image():
         s3.put_object(Bucket=BUCKET_NAME, Key=key, Body=image.stream, ContentType=content_type)
         return jsonify({"imageUrl": f"/api/listing-images/{key}"}), 200
     except Exception:
-        app.logger.exception("Listing image upload failed")
+        application.logger.exception("Listing image upload failed")
         return jsonify({"error": "Could not upload listing image."}), 500
 
 
-@app.get("/api/listing-images/<path:key>")
+@application.get("/api/listing-images/<path:key>")
 def serve_listing_image(key):
     if not key.startswith("listings/"):
         return jsonify({"error": "Image not found."}), 404
@@ -656,7 +700,7 @@ def serve_listing_image(key):
 # ========================
 # LISTINGS
 # ========================
-@app.route("/api/listings", methods=["POST"])
+@application.route("/api/listings", methods=["POST"])
 def create_listing():
     data = request.get_json()
     image = data.get("image") or "https://picsum.photos/300"
@@ -699,7 +743,7 @@ def create_listing():
         conn.close()
 
 #Tyson
-@app.route("/api/listings", methods=["GET"])
+@application.route("/api/listings", methods=["GET"])
 def get_listings():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -740,7 +784,7 @@ def get_listings():
     } for r in rows]), 200
 
 
-@app.route("/api/listings/<int:listing_id>", methods=["GET"])
+@application.route("/api/listings/<int:listing_id>", methods=["GET"])
 def get_listing_by_id(listing_id):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -783,7 +827,7 @@ def get_listing_by_id(listing_id):
     }), 200
 
 
-@app.route("/api/listings/<int:listing_id>", methods=["PUT"])
+@application.route("/api/listings/<int:listing_id>", methods=["PUT"])
 def update_listing(listing_id):
     data = request.get_json()
     user_id = data.get("user_id")
@@ -830,7 +874,7 @@ def update_listing(listing_id):
 #Tyson
 
 # Edited By Taj Brown
-@app.route("/api/listings/<int:listing_id>/mark-sold", methods=["PUT"])
+@application.route("/api/listings/<int:listing_id>/mark-sold", methods=["PUT"])
 def mark_listing_sold(listing_id):
     data = request.get_json()
     user_id = data.get("user_id")
@@ -928,7 +972,7 @@ def mark_listing_sold(listing_id):
         conn.close()
 
 
-@app.route("/api/listings/<int:listing_id>/mark-active", methods=["PUT"])
+@application.route("/api/listings/<int:listing_id>/mark-active", methods=["PUT"])
 def mark_listing_active(listing_id):
     data = request.get_json()
     user_id = data.get("user_id")
@@ -971,7 +1015,7 @@ def mark_listing_active(listing_id):
         conn.close()
 
 #Ayinde
-@app.route("/api/listings/<int:listing_id>", methods=["DELETE"])
+@application.route("/api/listings/<int:listing_id>", methods=["DELETE"])
 def delete_listing(listing_id):
     data = request.get_json() or {}
     user_id = data.get("user_id")
@@ -1020,7 +1064,7 @@ def delete_listing(listing_id):
 # ========================
 # USERS / PROFILE SUPPORT
 # ========================
-@app.route("/api/users/by-username/<username>", methods=["GET"])
+@application.route("/api/users/by-username/<username>", methods=["GET"])
 def get_user_by_username(username):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1047,7 +1091,7 @@ def get_user_by_username(username):
     }), 200
 
 
-@app.route("/api/users/<int:user_id>/profile", methods=["PUT"])
+@application.route("/api/users/<int:user_id>/profile", methods=["PUT"])
 def update_user_profile(user_id):
     data = request.get_json() or {}
     requester_id = data.get("user_id")
@@ -1115,7 +1159,7 @@ def update_user_profile(user_id):
         conn.close()
 
 
-@app.route("/api/listings/by-seller/<username>", methods=["GET"])
+@application.route("/api/listings/by-seller/<username>", methods=["GET"])
 def get_listings_by_seller(username):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1156,7 +1200,7 @@ def get_listings_by_seller(username):
     } for r in rows]), 200
 
 #Nickodemus
-@app.route("/api/listings/bought/<path:buyer_email>", methods=["GET"])
+@application.route("/api/listings/bought/<path:buyer_email>", methods=["GET"])
 def get_bought_items(buyer_email):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1224,7 +1268,7 @@ def get_bought_items(buyer_email):
     } for r in rows]), 200
 
 
-@app.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
+@application.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
 def get_return_requests_for_buyer(buyer_email):
     """Get all return requests made by a buyer (for return history)"""
     conn = get_db_connection()
@@ -1278,7 +1322,7 @@ def get_return_requests_for_buyer(buyer_email):
 # ========================
 # RETURNS
 # ========================
-@app.route("/api/returns/request", methods=["POST"])
+@application.route("/api/returns/request", methods=["POST"])
 def create_return_request():
     data = request.get_json() or {}
     listing_id = data.get("listing_id")
@@ -1362,7 +1406,7 @@ def create_return_request():
         conn.close()
 
 #Nickodemus
-@app.route("/api/returns/seller/<int:seller_id>", methods=["GET"])
+@application.route("/api/returns/seller/<int:seller_id>", methods=["GET"])
 def get_return_requests_for_seller(seller_id):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1414,7 +1458,7 @@ def get_return_requests_for_seller(seller_id):
     } for r in rows]), 200
 
 
-@app.route("/api/returns/<int:return_id>/review", methods=["PUT"])
+@application.route("/api/returns/<int:return_id>/review", methods=["PUT"])
 def review_return_request(return_id):
     data = request.get_json() or {}
     seller_id = data.get("seller_id")
@@ -1493,7 +1537,7 @@ MAX_MESSAGE_LENGTH = 2000
 
 
 # 1) Send a message about an item
-@app.route("/api/messages", methods=["POST"])
+@application.route("/api/messages", methods=["POST"])
 def send_message():
     data = request.get_json() or {}
     sender_id = data.get("sender_id")
@@ -1567,7 +1611,7 @@ def send_message():
 
 
 # 2) List my chats (one per item + other person, newest first)
-@app.route("/api/messages/chats", methods=["GET"])
+@application.route("/api/messages/chats", methods=["GET"])
 def list_my_chats():
     user_id = request.args.get("user_id", type=int)
 
@@ -1636,7 +1680,7 @@ def list_my_chats():
 
 
 # 3) Open one chat (all messages for one item between me and one other person)
-@app.route("/api/messages/chat", methods=["GET"])
+@application.route("/api/messages/chat", methods=["GET"])
 def get_chat():
     user_id = request.args.get("user_id", type=int)
     other_user_id = request.args.get("other_user_id", type=int)
@@ -1702,7 +1746,7 @@ def get_chat():
 
 
 # 4) Mark a chat as read (only messages sent TO me)
-@app.route("/api/messages/read", methods=["PUT"])
+@application.route("/api/messages/read", methods=["PUT"])
 def mark_chat_read():
     data = request.get_json() or {}
     user_id = data.get("user_id")
@@ -1743,7 +1787,7 @@ def mark_chat_read():
 
 # WISHLIST
 # ========================
-@app.route("/api/wishlist", methods=["GET"])
+@application.route("/api/wishlist", methods=["GET"])
 def get_wishlist():
     user_id = request.args.get("user_id")
 
@@ -1784,7 +1828,7 @@ def get_wishlist():
     } for r in rows]), 200
 
 
-@app.route("/api/wishlist", methods=["POST"])
+@application.route("/api/wishlist", methods=["POST"])
 def add_to_wishlist():
     data = request.get_json()
     user_id = data.get("user_id")
@@ -1819,7 +1863,7 @@ def add_to_wishlist():
         conn.close()
 
 
-@app.route("/api/wishlist/<int:listing_id>", methods=["DELETE"])
+@application.route("/api/wishlist/<int:listing_id>", methods=["DELETE"])
 def remove_from_wishlist(listing_id):
     user_id = request.args.get("user_id")
 
@@ -1841,7 +1885,7 @@ def remove_from_wishlist(listing_id):
 # ========================
 # WALLET
 # ========================
-@app.route("/api/wallet/balance", methods=["GET"])
+@application.route("/api/wallet/balance", methods=["GET"])
 def get_wallet_balance():
     user_id = request.args.get("user_id", type=int)
     if not user_id:
@@ -1852,7 +1896,7 @@ def get_wallet_balance():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/wallet/history", methods=["GET"])
+@application.route("/api/wallet/history", methods=["GET"])
 def get_wallet_history():
     user_id = request.args.get("user_id", type=int)
     if not user_id:
@@ -1863,7 +1907,7 @@ def get_wallet_history():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/wallet/transfer", methods=["POST"])
+@application.route("/api/wallet/transfer", methods=["POST"])
 def wallet_transfer():
     data = request.get_json() or {}
     try:
@@ -1883,7 +1927,7 @@ def wallet_transfer():
 # ========================
 # ADMIN
 # ========================
-@app.route("/api/admin/dashboard", methods=["GET"])
+@application.route("/api/admin/dashboard", methods=["GET"])
 def get_admin_dashboard():
     role = request.args.get("role")
 
@@ -2030,4 +2074,4 @@ def get_admin_dashboard():
 
 if __name__ == "__main__":
     init_db()
-    app.run(port=5001, debug=True)
+    application.run(port=5001, debug=True)
