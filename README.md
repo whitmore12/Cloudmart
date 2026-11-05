@@ -3,7 +3,7 @@
 A cloud-based campus marketplace for Hampton University students.
 
 # Deployed Link
-http://ecamp-env.<region>.elasticbeanstalk.com/index.html
+http://cloudmart-env.eba-wbku2kbr.us-east-1.elasticbeanstalk.com/index.html
 
 > The URL above is a placeholder. After `eb create` it will be the
 > environment URL printed by the EB CLI (for example
@@ -79,43 +79,8 @@ Open your browser and copy the file path of where your Signin.html is and paste 
 - **Wishlist** - Save items by clicking the heart ❤️ button
 - **Shopping Cart** - Add items to cart for checkout
 
-## Project Structure
 
-```
-CMFINAL/
-├── application.py         # Flask backend server & API routes (EB entrypoint)
-├── auth.py                # Authentication utilities
-├── s3_config.py           # AWS S3 configuration
-├── requirements.txt       # Python dependencies
-├── docker-compose.yml     # Local PostgreSQL (optional)
-├── Frontend/
-│   ├── index.html         # Marketplace/Home page
-│   ├── Signin.html        # Login/Register page
-│   ├── create.html        # Create listing page
-│   ├── wishlist.html      # User's saved items page
-│   ├── styles.css         # Shared styles
-│   └── script.js          # Frontend JavaScript
-├── DataBase/
-│   ├── postgres.py        # Database connection module
-│   ├── 01_schema.sql      # Database schema
-│   └── 02_seed.sql        # Seed data
-└── Resources/
-    ├── ec2Test.pem        # SSH key (not in Git)
-    └── Images/            # Static images
-```
 
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | User login |
-| GET | `/api/listings` | Get all listings |
-| POST | `/api/listings` | Create new listing |
-| GET | `/api/wishlist?user_id=X` | Get user's wishlist |
-| POST | `/api/wishlist` | Add to wishlist |
-| DELETE | `/api/wishlist/:id?user_id=X` | Remove from wishlist |
-| POST | `/api/uploads/presign` | Get S3 presigned URL |
 
 ## Configuration
 
@@ -125,30 +90,8 @@ CMFINAL/
 | Database | AWS RDS PostgreSQL |
 | Image Storage | AWS S3 |
 
-## Quick Start Checklist
-
-- [ ] Python 3.10+ installed
-- [ ] Project files cloned/copied
-- [ ] `Resources/ec2Test.pem` file present
-- [ ] Virtual environment created and activated
-- [ ] Dependencies installed
-- [ ] Run with `python application.py`
-- [ ] Open http://localhost:5001 in browser
 
 ## Deploying to Elastic Beanstalk (eCamp)
-
-Everything account-specific is supplied through environment variables, so
-moving to a new AWS account requires **no code changes**.
-
-### Names used by the deployment
-
-| Resource | Name |
-|----------|------|
-| EB application | `ecamp` |
-| EB environment | `ecamp-env` |
-| RDS database | `ecamp` |
-| RDS master user | `ecamp` |
-| S3 bucket | `ecamp-images-<unique-suffix>` |
 
 ### 1. One-time AWS setup (new account)
 

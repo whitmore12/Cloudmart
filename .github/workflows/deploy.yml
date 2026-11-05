@@ -1,0 +1,128 @@
+name: CI/CD - Test & Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1              # <-- Change to your AWS region
+  EB_APPLICATION_NAME: cloudmart     # <-- Change to your EB application name
+  EB_ENVIRONMENT_NAME: cloudmart-env # <-- Change to your EB environment name
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC authentication with AWS
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start PostgreSQL (for integration tests)
+        run: |
+          docker run -d \
+            --name test-db \
+            -e POSTGRES_USER=appuser \
+            -e POSTGRES_PASSWORD=apppass \
+            -e POSTGRES_DB=campus_marketplace \
+            -p 5432:5432 \
+            postgres:16
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..30}; do
+            if docker exec test-db pg_isready -U appuser -d campus_marketplace; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run database migrations/init
+        run: |
+          export DB_HOST=localhost
+          export DB_NAME=campus_marketplace
+          export DB_USER=appuser
+          export DB_PASSWORD=apppass
+          export USE_SSH_TUNNEL=false
+          python -c "
+          import psycopg
+          conn = psycopg.connect(host='localhost', port=5432, dbname='campus_marketplace', user='appuser', password='apppass')
+          cur = conn.cursor()
+          with open('DataBase/01_schema.sql') as f:
+              cur.execute(f.read())
+          with open('DataBase/02_seed.sql') as f:
+              cur.execute(f.read())
+          conn.commit()
+          cur.close()
+          conn.close()
+          print('Database initialized')
+          "
+
+      - name: Run pytest
+        run: |
+          export DB_HOST=localhost
+          export DB_NAME=campus_marketplace
+          export DB_USER=appuser
+          export DB_PASSWORD=apppass
+          export USE_SSH_TUNNEL=false
+          export SSH_HOST=dummy
+          export SSH_USER=dummy
+          export SSH_KEY_PATH=dummy
+          pytest tests/ -v
+
+      - name: Clean up test database
+        if: always()
+        run: docker rm -f test-db || true
+
+  deploy:
+    name: Deploy to Elastic Beanstalk
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install EB CLI
+        run: |
+          pip install awsebcli --upgrade
+
+      - name: Initialize EB CLI (if not already)
+        run: |
+          eb init ${{ env.EB_APPLICATION_NAME }} --platform "Python 3.12" --region ${{ env.AWS_REGION }} || true
+
+      - name: Deploy to Elastic Beanstalk
+        run: |
+          eb use ${{ env.EB_ENVIRONMENT_NAME }}
+          eb deploy --label "github-${{ github.sha::8 }}-${{ github.run_number }}" --timeout 15
+        env:
+          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
