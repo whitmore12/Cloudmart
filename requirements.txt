@@ -7,5 +7,5 @@ paramiko==3.5.0
 psycopg[binary]==3.3.6
 python-dotenv==1.0.1
 pytest
-sshtunnel==4.0.0
+sshtunnel==0.5.1
 Werkzeug==3.1.8
