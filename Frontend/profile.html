@@ -449,6 +449,7 @@ body {
     <a href="#soldSection" class="btn btn-outline">Sold Listings</a>
     <a href="#deletedSection" class="btn btn-outline">Deleted Listings</a>
     <a href="#boughtSection" class="btn btn-outline" id="boughtNavBtn" style="display:none;">Bought Items</a>
+    <a href="#messagesSection" class="btn btn-outline" id="messagesNavBtn" style="display:none;">Messages</a>
     <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requests (Seller)</a>
   </nav>
 
@@ -474,6 +475,31 @@ body {
     <h2 class="section-title">Bought Items</h2>
     <div id="boughtListings" class="grid"></div>
     <p id="boughtEmpty" class="empty" style="display:none;">No purchased items found.</p>
+  </section>
+
+  <!-- Built by Kwame: messages section -->
+  <section id="messagesSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Messages</h2>
+    <div id="chatList" class="grid"></div>
+    <p id="chatsEmpty" class="empty" style="display:none;">No messages yet.</p>
+
+    <div id="chatPanel" class="chat-panel" style="display:none;">
+      <div class="chat-header">
+        <div>
+          <h3 id="chatTitle">Chat</h3>
+          <p id="chatWith" class="meta"></p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline" type="button" onclick="refreshChat()">Refresh</button>
+          <button class="btn btn-outline" type="button" onclick="closeChat()">Close</button>
+        </div>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-reply">
+        <textarea id="chatReplyInput" maxlength="2000" placeholder="Write a reply..."></textarea>
+        <button class="btn btn-primary" type="button" onclick="sendChatReply()">Send</button>
+      </div>
+    </div>
   </section>
 
   <section id="returnsSection" class="section-block" style="display:none;">
