@@ -246,6 +246,9 @@ async function addToCart(listingId) {
     const item = data.find(i => Number(i.id) === Number(listingId));
 
     if (item) {
+      if (cart.some(cartItem => Number(cartItem.id) === Number(item.id))) {
+        return alert("This item is already in your cart.");
+      }
       cart.push(item);
       localStorage.setItem("cart", JSON.stringify(cart));
       alert("Added to cart!");

@@ -7,14 +7,13 @@ on:
     branches: [main]
 
 env:
-  AWS_REGION: us-east-1              # <-- Change to your AWS region
-  EB_APPLICATION_NAME: cloudmart     # <-- Change to your EB application name
-  EB_ENVIRONMENT_NAME: cloudmart-env # <-- Change to your EB environment name
+  AWS_REGION: us-east-1              
+  EB_APPLICATION_NAME: cloudmart     
+  EB_ENVIRONMENT_NAME: cloudmart-env 
 
 permissions:
   contents: read
-  id-token: write  # Required for OIDC authentication with AWS
-
+  id-token: write  
 jobs:
   test:
     name: Run Tests

@@ -398,10 +398,47 @@ function addToCart(id) {
     return alert("This item has already been sold.");
   }
 
+  if (cart.some(cartItem => Number(cartItem.id) === Number(item.id))) {
+    return alert("This item is already in your cart.");
+  }
+
   cart.push(item);
   localStorage.setItem("cart", JSON.stringify(cart));
   updateCartCount();
   alert("Added to cart!");
+}
+
+async function initiatePurchase(listingId) {
+  if (!user || !user.id) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  if (!confirm("Initiate purchase for this listing? You will receive a PIN to share with the seller.")) return;
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}/initiate-purchase`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user.id,
+        role: user.role
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to initiate purchase.");
+      return;
+    }
+
+    alert("Purchase initiated!\nYour verification PIN: " + data.verification_pin + "\nShare this PIN with the seller to complete the purchase.");
+    await loadListings();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
 }
 
 function applyFilters() {
