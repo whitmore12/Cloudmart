@@ -198,21 +198,19 @@ function clearCart() {
     renderCart();
   }
 }
-// Demo checkout records the sale, but does not process a real payment.
-async function setStatusToSold(listingId, user) {
-  let res = await fetch(`${API}/api/listings/${parseInt(listingId)}/mark-sold`, {
-    method: "PUT",
+async function initiatePurchase(listingId, user) {
+  const res = await fetch(`${API}/api/listings/${parseInt(listingId)}/initiate-purchase`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       user_id: user.id,
-      role: user.role,
-      buyer_email: user.email
+      role: user.role
     })
-  })
+  });
   if (!res.ok) {
-    throw new Error(await res.json().error || "Listing could not be marked as sold.")
+    throw new Error(await res.json().error || "Could not initiate purchase.");
   }
-  return await res.json()
+  return await res.json();
 }
 
 async function checkout() {
@@ -228,21 +226,32 @@ async function checkout() {
   }
 
   const items = [...new Map(cart.map(item => [Number(item.id), item])).values()];
-  const purchasedIds = new Set();
+  const purchaseResults = [];
   if (checkoutButton) checkoutButton.disabled = true;
 
   try {
     for (const item of items) {
-      await setStatusToSold(item.id, user);
-      purchasedIds.add(Number(item.id));
+      const result = await initiatePurchase(item.id, user);
+      purchaseResults.push({
+        listingId: item.id,
+        title: item.title,
+        pin: result.verification_pin,
+        pin_expires_at: result.pin_expires_at
+      });
     }
 
     localStorage.setItem("cart", JSON.stringify([]));
-    alert("Demo checkout complete. No payment was processed. Your purchase is saved to your profile.");
-    window.location.href = `profile.html?seller=${encodeURIComponent(user.username)}#boughtSection`;
+    
+    let message = "Checkout complete! Your purchases are now pending seller confirmation.\n\n";
+    message += "Share these PINs with each seller:\n\n";
+    purchaseResults.forEach(r => {
+      message += `• ${r.title}: PIN ${r.pin} (expires ${new Date(r.pin_expires_at).toLocaleString()})\n`;
+    });
+    message += "\nTrack status in your profile under 'Pending Listings'.";
+    
+    alert(message);
+    window.location.href = "profile.html#pendingListingsSection";
   } catch (error) {
-    const remaining = cart.filter(item => !purchasedIds.has(Number(item.id)));
-    localStorage.setItem("cart", JSON.stringify(remaining));
     alert(error.message || "Could not complete checkout. Please try again.");
     renderCart();
     if (checkoutButton) checkoutButton.disabled = false;

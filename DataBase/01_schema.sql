@@ -14,3 +14,9 @@ DROP INDEX IF EXISTS idx_users_email ON users;
 CREATE INDEX idx_users_email ON users(email);
 DROP INDEX IF EXISTS idx_users_username ON users;
 CREATE INDEX idx_users_username ON users(username);
+
+ALTER TABLE listings
+ADD COLUMN IF NOT EXISTS verification_pin VARCHAR(4),
+ADD COLUMN IF NOT EXISTS pin_expires_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS pin_verified_by_seller BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS pin_verified_at TIMESTAMP;

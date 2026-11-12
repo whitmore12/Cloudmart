@@ -148,6 +148,11 @@ def init_db():
 
     cur.execute("""
     ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'
+    """)
+
+    cur.execute("""
+    ALTER TABLE users
     ADD COLUMN IF NOT EXISTS pirate_dollars NUMERIC DEFAULT 100.00
     """)
 
@@ -185,6 +190,23 @@ def init_db():
     cur.execute("""
     ALTER TABLE listings
     ADD COLUMN IF NOT EXISTS fit VARCHAR(20)
+    """)
+
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS verification_pin VARCHAR(4)
+    """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS pin_expires_at TIMESTAMP
+    """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS pin_verified_by_seller BOOLEAN DEFAULT FALSE
+    """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS pin_verified_at TIMESTAMP
     """)
 
     cur.execute("""
@@ -905,12 +927,19 @@ def update_listing(listing_id):
 @app.route("/api/listings/<int:listing_id>/mark-sold", methods=["PUT"])
 def mark_listing_sold(listing_id):
     data = request.get_json()
+ # ========================
+ # PURCHASE FLOW: Buyer initiates -> Seller confirms with PIN
+ # ========================
+
+@app.route("/api/listings/<int:listing_id>/initiate-purchase", methods=["POST"])
+def initiate_purchase(listing_id):
+    """Buyer initiates purchase. Generates PIN, sets status to 'pending', holds funds."""
+    data = request.get_json() or {}
     user_id = data.get("user_id")
     user_role = data.get("role")
-    buyer_email = (data.get("buyer_email") or "").strip().lower()
 
-    if not buyer_email:
-        return jsonify({"error": "Buyer email is required"}), 400
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -924,72 +953,301 @@ def mark_listing_sold(listing_id):
 
         seller_id, price, current_status = row[0], float(row[1] or 0), (row[2] or "active").lower()
 
-        if current_status == "sold":
-            return jsonify({"error": "Listing is already sold"}), 400
+        if current_status != "active":
+            return jsonify({"error": "Listing is not available for purchase"}), 400
 
-        if current_status == "deleted":
-            return jsonify({"error": "Deleted listings cannot be marked as sold"}), 400
-
-        cur.execute("SELECT id, email FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
-        buyer_row = cur.fetchone()
-
-        if not buyer_row:
-            return jsonify({"error": "Buyer email does not belong to a registered user"}), 400
-
-        buyer_id = buyer_row[0]
-
-        if int(buyer_id) == int(seller_id):
+        if int(user_id) == int(seller_id):
             return jsonify({"error": "You cannot buy your own listing."}), 400
-        
-        if user_role != "admin" and int(user_id) not in (int(seller_id), int(buyer_id)):
-            return jsonify({"error": "Not authorized"}), 403
 
         # Check buyer has sufficient funds
-        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (buyer_id,))
+        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (user_id,))
         buyer_balance_row = cur.fetchone()
         if not buyer_balance_row or float(buyer_balance_row[0]) < price:
             conn.rollback()
             return jsonify({"error": "Insufficient funds"}), 400
 
-        # Lock seller row
-        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (seller_id,))
-        seller_balance_row = cur.fetchone()
-        if not seller_balance_row:
-            conn.rollback()
-            return jsonify({"error": "Seller not found"}), 404
+        import secrets
+        from datetime import datetime, timedelta
+        
+        pin = f"{secrets.randbelow(10000):04d}"
+        pin_expires_at = datetime.utcnow() + timedelta(hours=24)
 
-        # Transfer funds
         new_buyer_balance = float(buyer_balance_row[0]) - price
-        new_seller_balance = float(seller_balance_row[0]) + price
+        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_buyer_balance, user_id))
 
-        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_buyer_balance, buyer_id))
-        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_seller_balance, seller_id))
-
-        # Record transactions
         cur.execute("""
             INSERT INTO transactions (from_user_id, to_user_id, amount, type)
-            VALUES (%s, %s, %s, 'purchase')
-        """, (buyer_id, seller_id, price))
-        cur.execute("""
-            INSERT INTO transactions (from_user_id, to_user_id, amount, type)
-            VALUES (%s, %s, %s, 'sale')
-        """, (buyer_id, seller_id, price))
+            VALUES (%s, %s, %s, 'purchase_pending')
+        """, (user_id, seller_id, price))
 
-        # Mark listing as sold
         cur.execute("""
             UPDATE listings
-            SET status = 'sold',
-                buyer_email = %s
+            SET status = 'pending',
+                buyer_email = (SELECT email FROM users WHERE id = %s),
+                verification_pin = %s,
+                pin_expires_at = %s,
+                pin_verified_by_seller = FALSE,
+                pin_verified_at = NULL
             WHERE id = %s
               AND COALESCE(status, 'active') = 'active'
-        """, (buyer_row[1], listing_id))
+        """, (user_id, pin, pin_expires_at, listing_id))
 
         if cur.rowcount != 1:
             conn.rollback()
             return jsonify({"error": "Listing is no longer available"}), 409
 
         conn.commit()
-        return jsonify({"success": True, "message": "Listing marked as sold"}), 200
+        return jsonify({
+            "success": True, 
+            "message": "Purchase initiated. Share the PIN with the seller.",
+            "verification_pin": pin,
+            "pin_expires_at": pin_expires_at.isoformat(),
+            "status": "pending"
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route("/api/listings/<int:listing_id>/confirm-purchase", methods=["POST"])
+def confirm_purchase(listing_id):
+    """Seller confirms purchase with PIN. Transfers funds, marks as sold."""
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    user_role = data.get("role")
+    pin = (data.get("pin") or "").strip()
+
+    if not pin or len(pin) != 4 or not pin.isdigit():
+        return jsonify({"error": "Valid 4-digit PIN is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            SELECT 
+                id, user_id, buyer_email, price, verification_pin, pin_expires_at,
+                pin_verified_by_seller, pin_verified_at, COALESCE(status, 'active')
+            FROM listings
+            WHERE id = %s
+        """, (listing_id,))
+        row = cur.fetchone()
+
+        if not row:
+            return jsonify({"error": "Listing not found"}), 404
+
+        listing_id_db, seller_id, buyer_email, price, stored_pin, pin_expires_at, verified_by_seller, pin_verified_at, current_status = row
+
+        if current_status != "pending":
+            return jsonify({"error": "Listing is not in pending state"}), 400
+
+        if not stored_pin:
+            return jsonify({"error": "No PIN set for this listing"}), 400
+
+        if pin != stored_pin:
+            return jsonify({"error": "Invalid PIN"}), 401
+
+        if pin_expires_at and datetime.utcnow() > pin_expires_at:
+            cur.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
+            buyer_row = cur.fetchone()
+            if buyer_row:
+                buyer_id = buyer_row[0]
+                cur.execute("UPDATE users SET pirate_dollars = pirate_dollars + %s WHERE id = %s", (price, buyer_id))
+                cur.execute("""
+                    INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                    VALUES (%s, %s, %s, 'refund')
+                """, (seller_id, buyer_id, price))
+            
+            cur.execute("""
+                UPDATE listings
+                SET status = 'active',
+                    buyer_email = NULL,
+                    verification_pin = NULL,
+                    pin_expires_at = NULL,
+                    pin_verified_by_seller = FALSE,
+                    pin_verified_at = NULL
+                WHERE id = %s
+            """, (listing_id,))
+            conn.commit()
+            return jsonify({"error": "PIN has expired. Purchase cancelled, funds refunded."}), 401
+
+        if int(user_id) != int(seller_id) and user_role != "admin":
+            return jsonify({"error": "Only the seller can confirm this purchase"}), 403
+
+        if verified_by_seller:
+            return jsonify({"error": "Purchase already confirmed"}), 400
+
+        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (seller_id,))
+        seller_balance_row = cur.fetchone()
+        if not seller_balance_row:
+            conn.rollback()
+            return jsonify({"error": "Seller not found"}), 404
+
+        new_seller_balance = float(seller_balance_row[0]) + float(price)
+        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_seller_balance, seller_id))
+
+        cur.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
+        buyer_row = cur.fetchone()
+        buyer_id = buyer_row[0] if buyer_row else None
+        
+        if buyer_id:
+            cur.execute("""
+                INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                VALUES (%s, %s, %s, 'purchase')
+            """, (buyer_id, seller_id, price))
+            cur.execute("""
+                INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                VALUES (%s, %s, %s, 'sale')
+            """, (buyer_id, seller_id, price))
+
+        cur.execute("""
+            UPDATE listings
+            SET status = 'sold',
+                pin_verified_by_seller = TRUE,
+                pin_verified_at = CURRENT_TIMESTAMP,
+                verification_pin = NULL,
+                pin_expires_at = NULL
+            WHERE id = %s
+        """, (listing_id,))
+
+        conn.commit()
+        return jsonify({
+            "success": True,
+            "message": "Purchase confirmed. Listing marked as sold.",
+            "status": "sold"
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route("/api/listings/<int:listing_id>/get-pin", methods=["GET"])
+def get_pin(listing_id):
+    user_id = request.args.get("user_id", type=int)
+    user_role = request.args.get("role")
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            SELECT 
+                id, user_id, buyer_email, verification_pin, pin_expires_at,
+                pin_verified_by_seller, pin_verified_at, COALESCE(status, 'active')
+            FROM listings
+            WHERE id = %s
+        """, (listing_id,))
+        row = cur.fetchone()
+
+        if not row:
+            return jsonify({"error": "Listing not found"}), 404
+
+        listing_id_db, seller_id, buyer_email, stored_pin, pin_expires_at, verified_by_seller, pin_verified_at, current_status = row
+
+        if not stored_pin:
+            return jsonify({"error": "No PIN set for this listing"}), 400
+
+        is_buyer = False
+        is_seller = False
+        
+        cur.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
+        buyer_row = cur.fetchone()
+        buyer_id = buyer_row[0] if buyer_row else None
+
+        if buyer_id and int(user_id) == int(buyer_id):
+            is_buyer = True
+        elif int(user_id) == int(seller_id):
+            is_seller = True
+        elif user_role != "admin":
+            return jsonify({"error": "Not authorized to view this PIN"}), 403
+
+        return jsonify({
+            "success": True,
+            "verification_pin": stored_pin,
+            "pin_expires_at": pin_expires_at.isoformat() if pin_expires_at else None,
+            "pin_verified_by_seller": verified_by_seller,
+            "pin_verified_at": pin_verified_at.isoformat() if pin_verified_at else None,
+            "status": current_status,
+            "is_buyer": is_buyer,
+            "is_seller": is_seller
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route("/api/listings/<int:listing_id>/admin-bypass-pin", methods=["POST"])
+def admin_bypass_pin(listing_id):
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    user_role = data.get("role")
+
+    if user_role != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("SELECT id, price, buyer_email, user_id FROM listings WHERE id = %s", (listing_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Listing not found"}), 404
+
+        listing_id_db, price, buyer_email, seller_id = row
+
+        cur.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
+        buyer_row = cur.fetchone()
+        buyer_id = buyer_row[0] if buyer_row else None
+
+        if buyer_id:
+            cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (seller_id,))
+            seller_balance_row = cur.fetchone()
+            if seller_balance_row:
+                new_seller_balance = float(seller_balance_row[0]) + float(price)
+                cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_seller_balance, seller_id))
+
+                cur.execute("""
+                    INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                    VALUES (%s, %s, %s, 'purchase')
+                """, (buyer_id, seller_id, price))
+                cur.execute("""
+                    INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                    VALUES (%s, %s, %s, 'sale')
+                """, (buyer_id, seller_id, price))
+
+        cur.execute("""
+            UPDATE listings
+            SET status = 'sold',
+                pin_verified_by_seller = TRUE,
+                pin_verified_at = CURRENT_TIMESTAMP,
+                verification_pin = NULL,
+                pin_expires_at = NULL
+            WHERE id = %s
+        """, (listing_id,))
+
+        conn.commit()
+        return jsonify({
+            "success": True,
+            "message": "Purchase confirmed by admin. Listing marked as sold."
+        }), 200
 
     except Exception as e:
         conn.rollback()
@@ -1294,6 +1552,132 @@ def get_bought_items(buyer_email):
         "return_created_at": str(r[14]) if r[14] else None,
         "return_reviewed_at": str(r[15]) if r[15] else None
     } for r in rows]), 200
+
+
+@app.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
+@app.route("/api/listings/pending/<path:buyer_email>", methods=["GET"])
+def get_pending_purchases(buyer_email):
+    """Get all pending purchases for a buyer (listings where buyer initiated but seller hasn't confirmed)"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            l.id,
+            l.user_id,
+            l.title,
+            l.price,
+            l.category,
+            l.condition,
+            l.image,
+            COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+            COALESCE(l.status, 'active') AS status,
+            l.buyer_email,
+            l.verification_pin,
+            l.pin_expires_at,
+            l.pin_verified_by_seller,
+            l.pin_verified_at
+        FROM listings l
+        LEFT JOIN users u ON l.user_id = u.id
+        WHERE LOWER(COALESCE(l.buyer_email, '')) = LOWER(%s)
+           AND COALESCE(l.status, 'active') = 'pending'
+        ORDER BY l.id DESC
+    """, (buyer_email,))
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return jsonify([{
+        "id": r[0],
+        "user_id": r[1],
+        "title": r[2],
+        "price": float(r[3]) if r[3] is not None else 0,
+        "category": r[4],
+        "condition": r[5],
+        "image": r[6],
+        "seller": r[7],
+        "status": r[8],
+        "buyer_email": r[9],
+        "verification_pin": r[10],
+        "pin_expires_at": r[11].isoformat() if r[11] else None,
+        "pin_verified_by_seller": r[12],
+        "pin_verified_at": r[13].isoformat() if r[13] else None
+    } for r in rows]), 200
+
+
+@app.route("/api/listings/pending", methods=["GET"])
+def get_pending_listings():
+    """Get pending listings for current user - works for both buyers and sellers"""
+    user_id = request.args.get("user_id", type=int)
+    user_role = request.args.get("role")
+    
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        if user_role == "admin":
+            # Admin sees all pending
+            cur.execute("""
+                SELECT
+                    l.id, l.user_id, l.title, l.price, l.category, l.condition,
+                    l.image, COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+                    COALESCE(l.status, 'active') AS status, l.buyer_email,
+                    l.verification_pin, l.pin_expires_at,
+                    l.pin_verified_by_seller, l.pin_verified_at
+                FROM listings l
+                LEFT JOIN users u ON l.user_id = u.id
+                WHERE COALESCE(l.status, 'active') = 'pending'
+                ORDER BY l.id DESC
+            """)
+        else:
+            # Check if user is buyer or seller for each pending listing
+            cur.execute("""
+                SELECT
+                    l.id, l.user_id, l.title, l.price, l.category, l.condition,
+                    l.image, COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+                    COALESCE(l.status, 'active') AS status, l.buyer_email,
+                    l.verification_pin, l.pin_expires_at,
+                    l.pin_verified_by_seller, l.pin_verified_at
+                FROM listings l
+                LEFT JOIN users u ON l.user_id = u.id
+                WHERE COALESCE(l.status, 'active') = 'pending'
+                  AND (
+                      (l.user_id = %s)  -- seller's own pending listings
+                      OR (LOWER(COALESCE(l.buyer_email, '')) = (
+                          SELECT LOWER(email) FROM users WHERE id = %s
+                      ))  -- buyer's pending purchases
+                  )
+                ORDER BY l.id DESC
+            """, (user_id, user_id))
+
+        rows = cur.fetchall()
+        
+        return jsonify([{
+            "id": r[0],
+            "user_id": r[1],
+            "title": r[2],
+            "price": float(r[3]) if r[3] is not None else 0,
+            "category": r[4],
+            "condition": r[5],
+            "image": r[6],
+            "seller": r[7],
+            "status": r[8],
+            "buyer_email": r[9],
+            "verification_pin": r[10],
+            "pin_expires_at": r[11].isoformat() if r[11] else None,
+            "pin_verified_by_seller": r[12],
+            "pin_verified_at": r[13].isoformat() if r[13] else None
+        } for r in rows]), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 
 @app.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
