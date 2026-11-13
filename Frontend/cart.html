@@ -106,6 +106,12 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
         <div class="total-amount" id="cartTotal">$0.00</div>
       </div>
       <div>
+         <input
+          type="password"
+          id="checkoutPassword"
+          placeholder="Enter password to confirm (2FA)"
+          style="padding: 10px 14px; border: 1px solid rgba(29,35,62,0.25); border-radius: 8px; margin-right: 10px;"
+        />
         <button class="btn btn-outline" style="margin-right: 10px;" onclick="clearCart()">Clear Cart</button>
         <button class="btn btn-primary" style="padding: 12px 30px;" onclick="checkout()">Checkout</button>
       </div>
@@ -199,20 +205,22 @@ function clearCart() {
   }
 }
 // Demo checkout records the sale, but does not process a real payment.
-async function setStatusToSold(listingId, user) {
-  let res = await fetch(`${API}/api/listings/${parseInt(listingId)}/mark-sold`, {
+async function setStatusToSold(listingId, user, password) {
+  const res = await fetch(`${API}/api/listings/${parseInt(listingId)}/mark-sold`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       user_id: user.id,
       role: user.role,
-      buyer_email: user.email
+      buyer_email: user.email,
+      password: password
     })
-  })
+  });
+  const data = await res.json();
   if (!res.ok) {
-    throw new Error(await res.json().error || "Listing could not be marked as sold.")
+    throw new Error(data.error || "Listing could not be marked as sold.");
   }
-  return await res.json()
+  return data;
 }
 
 async function checkout() {
@@ -227,13 +235,18 @@ async function checkout() {
     return;
   }
 
+  const password = document.getElementById("checkoutPassword").value;
+  if (!password) {
+    alert("Please enter your password to confirm your purchase (2FA).");
+    return;
+  }
   const items = [...new Map(cart.map(item => [Number(item.id), item])).values()];
   const purchasedIds = new Set();
   if (checkoutButton) checkoutButton.disabled = true;
 
   try {
     for (const item of items) {
-      await setStatusToSold(item.id, user);
+      await setStatusToSold(item.id, user, password);
       purchasedIds.add(Number(item.id));
     }
 
