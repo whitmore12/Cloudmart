@@ -131,7 +131,7 @@
       <option>Used</option>
     </select>
 
-    <input id="image" type="file" accept="image/*" />
+    <input id="image" type="file" accept="image/*" required />
 
     <button class="btn-primary" id="submitBtn" onclick="submitListing()">Create</button>
   </div>
@@ -264,8 +264,12 @@
         return;
       }
 
-      let imageUrl = window.currentImage || "https://picsum.photos/300";
+if (!isEditMode && !imageFile) {
+        alert("Please upload a picture to post a listing.");
+        return;
+      }
 
+      let imageUrl = window.currentImage || "";
       try {
         if (imageFile) {
           imageUrl = await uploadImageToS3(imageFile);
