@@ -75,6 +75,19 @@ body { font-family: system-ui, Arial, sans-serif; background:#f3f0e7; color:#1d2
       </form>
     </div>
 
+    <div style="margin-bottom:24px;">
+      <h3 style="margin-bottom:12px;">Add or Remove Money</h3>
+      <div class="form-group">
+        <label for="adjustAmount">Enter amount</label>
+        <input type="number" id="adjustAmount" placeholder="0.00" step="0.01" min="0.01" />
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn btn-primary btn-full" onclick="adjustMoney('add')">Add Money</button>
+        <button type="button" class="btn btn-outline btn-full" onclick="adjustMoney('remove')">Remove Money</button>
+      </div>
+      <p id="adjustMsg" class="muted"></p>
+    </div>
+
     <div>
       <h3 style="margin-bottom:12px;">Transaction History</h3>
       <div id="history" class="history">
@@ -144,6 +157,27 @@ async function sendMoney(e) {
       document.getElementById("sendForm").reset();
       loadBalance(); loadHistory();
     } else throw new Error(data.error || "Transfer failed");
+  } catch (err) { msg.textContent = err.message; msg.className = "error"; }
+}
+
+async function adjustMoney(action) {
+  const msg = document.getElementById("adjustMsg");
+  const amount = parseFloat(document.getElementById("adjustAmount").value);
+  msg.textContent = ""; msg.className = "muted";
+  if (!amount || amount <= 0) { msg.textContent = "Enter an amount greater than 0"; msg.className = "error"; return; }
+
+  try {
+    const res = await fetch(`${API}/api/wallet/adjust`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: user.id, amount, action })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || "Request failed");
+    msg.textContent = action === "add" ? "Money added!" : "Money removed!";
+    msg.className = "success";
+    document.getElementById("adjustAmount").value = "";
+    document.getElementById("balance").textContent = "$" + Number(data.balance).toFixed(2);
+    loadHistory();
   } catch (err) { msg.textContent = err.message; msg.className = "error"; }
 }
 
