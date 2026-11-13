@@ -30,6 +30,20 @@ function msgPost(path, method, payload) {
   });
 }
 
+async function uploadMessageImage(file) {
+  if (!file) return null;
+  if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
+  if (file.size > 8 * 1024 * 1024) throw new Error("Images must be 8 MB or smaller.");
+  const signed = await msgPost("/api/uploads/message-presign", "POST", {
+    fileName: file.name, fileType: file.type
+  });
+  const upload = await fetch(signed.uploadUrl, {
+    method: "PUT", headers: { "Content-Type": file.type }, body: file
+  });
+  if (!upload.ok) throw new Error("Image upload failed.");
+  return signed.imageUrl;
+}
+
 /* ---------- index.html: message seller popup ---------- */
 function openMessageBox(listingId) {
   const me = msgUser();
@@ -73,17 +87,20 @@ function setMsgStatus(text, type) {
 async function sendMessageToSeller() {
   const me = msgUser();
   const body = document.getElementById("msgBody").value.trim();
-  if (!body) return setMsgStatus("Please write a message first.", "error");
+  const fileInput = document.getElementById("msgImageInput");
+  if (!body && !fileInput.files[0]) return setMsgStatus("Write a message or attach an image.", "error");
   const btn = document.getElementById("msgSendBtn");
   btn.disabled = true;
   try {
+    const image_url = await uploadMessageImage(fileInput.files[0]);
     await msgPost("/api/messages", "POST", {
       sender_id: me.id,
       receiver_id: msgReceiverId,
       listing_id: msgListingId,
-      body,
+      body, image_url,
     });
     setMsgStatus("Message sent! Find replies under Messages on your profile.", "ok");
+    fileInput.value = "";
     setTimeout(closeMessageBox, 1200);
   } catch (err) {
     setMsgStatus(err.message, "error");
@@ -156,7 +173,8 @@ async function refreshChat() {
     box.innerHTML = data.messages.map(m => {
       const mine = Number(m.sender_id) === Number(me.id);
       const when = m.created_at ? new Date(m.created_at.replace(" ", "T")).toLocaleString() : "";
-      return `<div class="chat-bubble ${mine ? "mine" : ""}">${msgEsc(m.body)}<small>${msgEsc(when)}</small></div>`;
+      const attachment = m.image_url ? `<img class="chat-attachment" src="${msgEsc(m.image_url)}" alt="Message attachment">` : "";
+      return `<div class="chat-bubble ${mine ? "mine" : ""}">${attachment}${msgEsc(m.body)}<small>${msgEsc(when)}</small></div>`;
     }).join("") || `<p class="empty">No messages yet.</p>`;
     box.scrollTop = box.scrollHeight;
   } catch (err) {
@@ -172,16 +190,19 @@ function closeChat() {
 async function sendChatReply() {
   if (!activeChat) return;
   const input = document.getElementById("chatReplyInput");
+  const fileInput = document.getElementById("chatImageInput");
   const body = input.value.trim();
-  if (!body) return;
+  if (!body && !fileInput.files[0]) return;
   try {
+    const image_url = await uploadMessageImage(fileInput.files[0]);
     await msgPost("/api/messages", "POST", {
       sender_id: msgUser().id,
       receiver_id: activeChat.otherUserId,
       listing_id: activeChat.listingId,
-      body,
+      body, image_url,
     });
     input.value = "";
+    fileInput.value = "";
     await refreshChat();
     loadChats();
   } catch (err) {

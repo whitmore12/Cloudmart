@@ -36,6 +36,7 @@
   outline: none;
 }
 .msg-box textarea:focus { border-color: #e25d3b; }
+.msg-box input[type="file"], .chat-reply input[type="file"] { font: inherit; font-size: 0.85rem; }
 .msg-item-image { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; }
 .msg-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .msg-status { font-size: 0.9rem; min-height: 1.2em; }
@@ -105,12 +106,15 @@
   align-self: flex-end;
 }
 .chat-bubble small { display: block; opacity: 0.7; font-size: 0.72rem; margin-top: 2px; }
+.chat-attachment { display: block; max-width: 220px; max-height: 180px; margin-bottom: 6px; border-radius: 8px; object-fit: cover; }
 .chat-reply {
   display: flex;
   gap: 8px;
   padding: 12px;
   border-top: 1px solid rgba(29, 35, 62, 0.12);
 }
+.chat-reply { flex-wrap: wrap; }
+.chat-reply input[type="file"] { flex: 0 0 100%; }
 .chat-reply textarea {
   flex: 1;
   min-height: 44px;

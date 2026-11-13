@@ -272,11 +272,13 @@ def init_db():
         sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-        body TEXT NOT NULL,
+        body TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_read BOOLEAN NOT NULL DEFAULT FALSE
     )
     """)
+    cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_url TEXT")
+    cur.execute("ALTER TABLE messages ALTER COLUMN body DROP NOT NULL")
 
     cur.execute("""
     CREATE INDEX IF NOT EXISTS idx_messages_chat
@@ -564,6 +566,31 @@ def generate_presigned_upload_url():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/uploads/message-presign", methods=["POST", "OPTIONS"])
+def generate_message_presigned_upload_url():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True}), 200
+
+    data = request.get_json() or {}
+    file_name = data.get("fileName")
+    file_type = data.get("fileType") or ""
+    if not file_name or not file_type.startswith("image/"):
+        return jsonify({"error": "An image file is required"}), 400
+
+    try:
+        ext = os.path.splitext(file_name)[1] or ".jpg"
+        unique_name = f"messages/{uuid.uuid4()}{ext}"
+        upload_url = s3.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": BUCKET_NAME, "Key": unique_name, "ContentType": file_type},
+            ExpiresIn=300
+        )
+        image_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{unique_name}"
+        return jsonify({"uploadUrl": upload_url, "imageUrl": image_url}), 200
+    except Exception:
+        app.logger.exception("Message image presign failed")
+        return jsonify({"error": "Could not prepare message image upload"}), 500
 
 #Nickodemus
 @app.route("/api/uploads/profile-presign", methods=["POST", "OPTIONS"])
@@ -1956,9 +1983,10 @@ def send_message():
     receiver_id = data.get("receiver_id")
     listing_id = data.get("listing_id")
     body = (data.get("body") or "").strip()
+    image_url = (data.get("image_url") or "").strip() or None
 
-    if not sender_id or not receiver_id or not listing_id or not body:
-        return jsonify({"error": "sender_id, receiver_id, listing_id, and body are required"}), 400
+    if not sender_id or not receiver_id or not listing_id or (not body and not image_url):
+        return jsonify({"error": "sender_id, receiver_id, listing_id, and a message or image are required"}), 400
 
     try:
         sender_id = int(sender_id)
@@ -1993,10 +2021,10 @@ def send_message():
             return jsonify({"error": "Messages about an item must involve its seller"}), 403
 
         cur.execute("""
-            INSERT INTO messages (sender_id, receiver_id, listing_id, body, is_read)
-            VALUES (%s, %s, %s, %s, FALSE)
+            INSERT INTO messages (sender_id, receiver_id, listing_id, body, image_url, is_read)
+            VALUES (%s, %s, %s, %s, %s, FALSE)
             RETURNING id, created_at
-        """, (sender_id, receiver_id, listing_id, body))
+        """, (sender_id, receiver_id, listing_id, body, image_url))
         new_row = cur.fetchone()
         conn.commit()
 
@@ -2008,6 +2036,7 @@ def send_message():
                 "receiver_id": receiver_id,
                 "listing_id": listing_id,
                 "body": body,
+                "image_url": image_url,
                 "created_at": str(new_row[1]),
                 "is_read": False
             }
@@ -2116,7 +2145,7 @@ def get_chat():
             return jsonify({"error": "Listing or user not found"}), 404
 
         cur.execute("""
-            SELECT id, sender_id, receiver_id, body, created_at, is_read
+            SELECT id, sender_id, receiver_id, body, image_url, created_at, is_read
             FROM messages
             WHERE listing_id = %s
               AND (
@@ -2144,8 +2173,9 @@ def get_chat():
                 "sender_id": r[1],
                 "receiver_id": r[2],
                 "body": r[3],
-                "created_at": str(r[4]),
-                "is_read": r[5]
+                "image_url": r[4],
+                "created_at": str(r[5]),
+                "is_read": r[6]
             } for r in rows]
         }), 200
 

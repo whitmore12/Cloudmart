@@ -316,6 +316,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
     <img id="msgItemImage" class="msg-item-image" alt="Listing photo" hidden>
     <p id="msgSellerName" class="muted"></p>
     <textarea id="msgBody" maxlength="2000" placeholder="Write your message..."></textarea>
+    <input id="msgImageInput" type="file" accept="image/*">
     <div class="msg-actions">
       <button class="btn btn-primary" id="msgSendBtn" onclick="sendMessageToSeller()">Send</button>
       <button class="btn btn-outline" onclick="closeMessageBox()">Cancel</button>
