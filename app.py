@@ -178,6 +178,14 @@ def init_db():
     ALTER TABLE listings
     ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'
     """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS size VARCHAR(20)
+    """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS fit VARCHAR(20)
+    """)
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS wishlist (
@@ -656,10 +664,55 @@ def serve_listing_image(key):
 # ========================
 # LISTINGS
 # ========================
+
+# Edited by Makaila Williams 11/12/26
+# Purpose: make sure the category, condition, size and fit are real choices
+# the dropdowns on the sell page can be changed in the browser, so the server checks them too
+ALLOWED_CATEGORIES = [
+    "Clothing", "Shoes", "Bags & Accessories", "Electronics", "Books",
+    "Furniture", "Appliances", "Dorm & Home", "Beauty", "Other",
+]
+ALLOWED_CONDITIONS = ["New", "Used"]
+ALLOWED_FITS = ["Women's", "Men's", "Unisex"]
+SIZES_BY_CATEGORY = {
+    "Clothing": ["XS", "S", "M", "L", "XL", "XXL"],
+    "Shoes": ["US " + str(n) for n in range(1, 16)],
+}
+
+
+def check_listing_fields(data):
+    # gives back an error message, or None if it is all good
+    category = data.get("category")
+    if category not in ALLOWED_CATEGORIES:
+        return "Please pick a valid category."
+    if data.get("condition") not in ALLOWED_CONDITIONS:
+        return "Please pick a valid condition."
+
+    # only clothing and shoes need a size and fit
+    if category in SIZES_BY_CATEGORY:
+        if data.get("fit") not in ALLOWED_FITS:
+            return "Please pick a fit."
+        if data.get("size") not in SIZES_BY_CATEGORY[category]:
+            return "Please pick a valid size."
+    return None
+
+
+def size_and_fit(data):
+    # every other category gets no size or fit saved
+    if data.get("category") in SIZES_BY_CATEGORY:
+        return data.get("size"), data.get("fit")
+    return None, None
+
+
 @app.route("/api/listings", methods=["POST"])
 def create_listing():
     data = request.get_json()
     image = data.get("image") or "https://picsum.photos/300"
+
+    field_error = check_listing_fields(data)
+    if field_error:
+        return jsonify({"error": field_error}), 400
+    size, fit = size_and_fit(data)
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -673,8 +726,8 @@ def create_listing():
         seller_name = seller_row[0]
 
         cur.execute("""
-            INSERT INTO listings (user_id, title, price, category, condition, image, seller, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO listings (user_id, title, price, category, condition, image, seller, status, size, fit)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data["user_id"],
@@ -684,7 +737,9 @@ def create_listing():
             data["condition"],
             image,
             seller_name,
-            "active"
+            "active",
+            size,
+            fit
         ))
 
         new_listing_id = cur.fetchone()[0]
@@ -715,7 +770,9 @@ def get_listings():
             l.image,
             COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
             COALESCE(l.status, 'active') AS status,
-            l.buyer_email
+            l.buyer_email,
+            l.size,
+            l.fit
         FROM listings l
         LEFT JOIN users u ON l.user_id = u.id
         WHERE COALESCE(l.status, 'active') = 'active'
@@ -736,7 +793,9 @@ def get_listings():
     "image": r[6],
     "seller": r[7],
     "status": r[8],
-    "buyer_email": r[9]
+    "buyer_email": r[9],
+    "size": r[10],
+    "fit": r[11]
     } for r in rows]), 200
 
 
@@ -756,7 +815,9 @@ def get_listing_by_id(listing_id):
             l.image,
             COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
             COALESCE(l.status, 'active') AS status,
-            l.buyer_email
+            l.buyer_email,
+            l.size,
+            l.fit
         FROM listings l
         LEFT JOIN users u ON l.user_id = u.id
         WHERE l.id = %s
@@ -779,7 +840,9 @@ def get_listing_by_id(listing_id):
     "image": row[6],
     "seller": row[7],
     "status": row[8],
-    "buyer_email": row[9]
+    "buyer_email": row[9],
+    "size": row[10],
+    "fit": row[11]
     }), 200
 
 
@@ -788,6 +851,11 @@ def update_listing(listing_id):
     data = request.get_json()
     user_id = data.get("user_id")
     user_role = data.get("role")
+
+    field_error = check_listing_fields(data)
+    if field_error:
+        return jsonify({"error": field_error}), 400
+    size, fit = size_and_fit(data)
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -808,7 +876,9 @@ def update_listing(listing_id):
                 price = %s,
                 category = %s,
                 condition = %s,
-                image = %s
+                image = %s,
+                size = %s,
+                fit = %s
             WHERE id = %s
         """, (
             data["title"],
@@ -816,6 +886,8 @@ def update_listing(listing_id):
             data["category"],
             data["condition"],
             data["image"],
+            size,
+            fit,
             listing_id
         ))
 
