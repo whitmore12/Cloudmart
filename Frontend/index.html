@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>eCamp Marketplace</title>
 <link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="messaging.css" />
+<script src="messaging.js" defer></script>
 <style>
 * { box-sizing: border-box; margin:0; padding:0; }
 body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1d233e; line-height:1.5; }
@@ -311,6 +313,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
 <div id="msgOverlay" class="msg-overlay">
   <div class="msg-box">
     <h3 id="msgItemTitle">Message seller</h3>
+    <img id="msgItemImage" class="msg-item-image" alt="Listing photo" hidden>
     <p id="msgSellerName" class="muted"></p>
     <textarea id="msgBody" maxlength="2000" placeholder="Write your message..."></textarea>
     <div class="msg-actions">

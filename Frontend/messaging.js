@@ -41,6 +41,11 @@ function openMessageBox(listingId) {
   msgListingId = Number(item.id);
   msgReceiverId = Number(item.user_id); // the seller
   document.getElementById("msgItemTitle").textContent = `Message about: ${item.title}`;
+  const itemImage = document.getElementById("msgItemImage");
+  if (itemImage) {
+    itemImage.src = item.image || "";
+    itemImage.hidden = !item.image;
+  }
   document.getElementById("msgSellerName").textContent = item.seller ? `To: ${item.seller}` : "";
   document.getElementById("msgBody").value = "";
   setMsgStatus("");
@@ -109,9 +114,10 @@ async function loadChats() {
       const div = document.createElement("div");
       div.className = "chat-item";
       const unread = c.unread_count > 0 ? `<span class="chat-unread">${c.unread_count}</span>` : "";
-      div.innerHTML = `<strong>${msgEsc(c.other_username)} ${unread}</strong>
+      const photo = c.listing_image ? `<img class="chat-thumb" src="${msgEsc(c.listing_image)}" alt="">` : "";
+      div.innerHTML = `<div class="chat-item-row">${photo}<div><strong>${msgEsc(c.other_username)} ${unread}</strong>
         <span class="muted">${msgEsc(c.listing_title)}</span>
-        <div class="chat-preview">${c.last_message_from_me ? "You: " : ""}${msgEsc(c.last_message)}</div>`;
+        <div class="chat-preview">${c.last_message_from_me ? "You: " : ""}${msgEsc(c.last_message)}</div></div></div>`;
       div.onclick = () => openChat(c.listing_id, c.other_user_id);
       list.appendChild(div);
     });
@@ -141,6 +147,11 @@ async function refreshChat() {
   try {
     const data = await msgFetch(`/api/messages/chat?${q}`);
     document.getElementById("chatTitle").textContent = data.listing.title;
+    const chatImage = document.getElementById("chatListingImage");
+    if (chatImage) {
+      chatImage.src = data.listing.image || "";
+      chatImage.hidden = !data.listing.image;
+    }
     document.getElementById("chatWith").textContent = `With ${data.other_user.username}`;
     box.innerHTML = data.messages.map(m => {
       const mine = Number(m.sender_id) === Number(me.id);
@@ -177,3 +188,7 @@ async function sendChatReply() {
     alert(err.message);
   }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (document.getElementById("messagesSection")) initMessaging();
+});

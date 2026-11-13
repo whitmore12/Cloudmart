@@ -5,6 +5,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>User Profile | eCamp</title>
+<link rel="stylesheet" href="messaging.css" />
+<script src="messaging.js" defer></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -493,6 +495,7 @@ body {
     <div id="chatPanel" class="chat-panel" style="display:none;">
       <div class="chat-header">
         <div>
+          <img id="chatListingImage" class="chat-listing-image" alt="Listing photo" hidden>
           <h3 id="chatTitle">Chat</h3>
           <p id="chatWith" class="meta"></p>
         </div>

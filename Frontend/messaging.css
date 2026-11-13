@@ -36,6 +36,7 @@
   outline: none;
 }
 .msg-box textarea:focus { border-color: #e25d3b; }
+.msg-item-image { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; }
 .msg-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .msg-status { font-size: 0.9rem; min-height: 1.2em; }
 .msg-status.error { color: #ef4444; }
@@ -51,6 +52,9 @@
   transition: box-shadow 0.2s, transform 0.2s;
 }
 .chat-item:hover { box-shadow: 0 4px 12px rgba(29, 35, 62, 0.18); transform: translateY(-1px); }
+.chat-item-row { display: flex; gap: 12px; align-items: center; }
+.chat-thumb { width: 58px; height: 58px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; background: #ece7d6; }
+.chat-item-row > div { min-width: 0; flex: 1; }
 .chat-item strong { display: block; }
 .chat-item .chat-preview {
   color: #706b5f;
@@ -75,6 +79,7 @@
   padding: 12px 14px;
   border-bottom: 1px solid rgba(29, 35, 62, 0.12);
 }
+.chat-listing-image { width: 48px; height: 48px; object-fit: cover; border-radius: 7px; margin-bottom: 4px; }
 .chat-messages {
   height: 320px;
   overflow-y: auto;
