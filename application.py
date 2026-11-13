@@ -14,6 +14,7 @@ import hmac
 import re
 import time
 from dotenv import load_dotenv
+from backend.Wallet import get_balance, update_money
 
                      
 """
@@ -2402,8 +2403,14 @@ def get_wallet_balance():
     if not user_id:
         return jsonify({"error": "user_id required"}), 400
     try:
-        from backend.Wallet import get_balance
-        return jsonify({"balance": get_balance(user_id)}), 200
+        conn = get_db_connection()
+        try:
+            balance = get_balance(conn.cursor(), user_id)
+        finally:
+            conn.close()
+        if balance is None:
+            return jsonify({"error": "User not found"}), 404
+        return jsonify({"balance": balance}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -2418,6 +2425,37 @@ def get_wallet_history():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/wallet/adjust", methods=["POST"])
+def wallet_adjust():
+    data = request.get_json()
+    action = data.get("action")
+    user_id = data.get("user_id")
+    amount = float(data.get("amount", 0))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    current_balance = get_balance(cur, user_id)
+    if current_balance is None:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    if action == "add":
+        new_balance = current_balance + amount
+    elif action == "remove":
+        if current_balance < amount:
+            conn.close()
+            return jsonify({"error": "Insufficient funds"}), 400
+        new_balance = current_balance - amount
+    else:
+        conn.close()
+        return jsonify({"error": "Invalid action"}), 400
+
+    update_money(conn, cur, user_id, new_balance)
+    conn.close()
+
+    return jsonify({"success": True, "balance": float(new_balance)}), 200
+
 @app.route("/api/wallet/transfer", methods=["POST"])
 def wallet_transfer():
     data = request.get_json() or {}
@@ -2429,7 +2467,11 @@ def wallet_transfer():
         return jsonify({"error": "Invalid parameters"}), 400
     try:
         from backend.Wallet import transfer_money
-        result = transfer_money(buyer_id, seller_id, amount)
+        conn = get_db_connection()
+        try:
+            result = transfer_money(conn, buyer_id, seller_id, amount)
+        finally:
+            conn.close()
         return jsonify({"success": result == 0, "error": "Insufficient funds" if result else None}), 200 if result == 0 else 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
