@@ -706,8 +706,11 @@ def size_and_fit(data):
 
 @app.route("/api/listings", methods=["POST"])
 def create_listing():
-    data = request.get_json()
-    image = data.get("image") or "https://picsum.photos/300"
+    data = request.get_json() or {}
+    image = (data.get("image") or "").strip()
+
+    if not image or image == "https://picsum.photos/300":
+        return jsonify({"error": "A picture is required to post a listing."}), 400
 
     field_error = check_listing_fields(data)
     if field_error:
@@ -908,6 +911,8 @@ def mark_listing_sold(listing_id):
     user_id = data.get("user_id")
     user_role = data.get("role")
     buyer_email = (data.get("buyer_email") or "").strip().lower()
+  
+    password = data.get("password") or ""
 
     if not buyer_email:
         return jsonify({"error": "Buyer email is required"}), 400
@@ -916,7 +921,13 @@ def mark_listing_sold(listing_id):
     cur = conn.cursor()
 
     try:
-        cur.execute("SELECT user_id, price, COALESCE(status, 'active') FROM listings WHERE id = %s FOR UPDATE", (listing_id,))
+        cur.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+        auth_row = cur.fetchone()
+        if not auth_row or not auth_row[0] or not bcrypt.checkpw(password.encode(), auth_row[0].encode()):
+            conn.rollback()
+            return jsonify({"error": "Incorrect password. Purchase verification failed."}), 401
+      
+      cur.execute("SELECT user_id, price, COALESCE(status, 'active') FROM listings WHERE id = %s FOR UPDATE", (listing_id,))
         row = cur.fetchone()
 
         if not row:
@@ -1495,7 +1506,7 @@ def review_return_request(return_id):
     seller_note = (data.get("seller_note") or "").strip()
 
     if action not in ["approve", "deny"]:
-        return jsonify({"error": "Action must be approve or deny"}), 400
+        return jsonify({"error": "Action must be approve or deny"}), 4 00
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1938,12 +1949,29 @@ def get_wallet_history():
 @app.route("/api/wallet/transfer", methods=["POST"])
 def wallet_transfer():
     data = request.get_json() or {}
+    password = data.get("password") or ""
     try:
         buyer_id = int(data.get("buyer_id"))
         seller_id = int(data.get("seller_id"))
         amount = float(data.get("amount"))
     except (TypeError, ValueError):
         return jsonify({"error": "Invalid parameters"}), 400
+
+    if not password:
+        return jsonify({"error": "Password confirmation (2FA) is required to transfer money."}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT password_hash FROM users WHERE id = %s", (buyer_id,))
+        user_row = cur.fetchone()
+        if not user_row or not user_row[0] or not bcrypt.checkpw(password.encode(), user_row[0].encode()):
+            conn.rollback()
+            return jsonify({"error": "Incorrect password. Transfer verification failed."}), 401
+    finally:
+        cur.close()
+        conn.close()
+
     try:
         from backend.Wallet import transfer_money
         result = transfer_money(buyer_id, seller_id, amount)
