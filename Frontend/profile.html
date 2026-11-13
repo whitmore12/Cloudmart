@@ -1096,30 +1096,38 @@ async function markAsSold(listingId) {
   showPrompt("Enter the buyer's email:", async (buyerEmail) => {
     if (!buyerEmail || !buyerEmail.trim()) return;
 
-    try {
-      const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: loggedInUser.id,
-          role: loggedInUser.role,
-          buyer_email: buyerEmail.trim()
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "Failed to mark listing as sold.");
+    showPrompt("Confirm with your password (2FA):", async (password) => {
+      if (!password) {
+        alert("Password confirmation is required.");
         return;
       }
 
-      alert("Listing marked as sold.");
-      loadProfile();
-    } catch (err) {
-      console.error(err);
-      alert("Error connecting to server.");
-    }
+      try {
+        const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: loggedInUser.id,
+            role: loggedInUser.role,
+            buyer_email: buyerEmail.trim(),
+            password: password
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert(data.error || "Failed to mark listing as sold.");
+          return;
+        }
+
+        alert("Listing marked as sold.");
+        loadProfile();
+      } catch (err) {
+        console.error(err);
+        alert("Error connecting to server.");
+      }
+    });
   });
 }
 
