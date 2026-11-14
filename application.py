@@ -1037,8 +1037,10 @@ def initiate_purchase(listing_id):
 
         seller_id, price, current_status = row[0], float(row[1] or 0), (row[2] or "active").lower()
 
+        # Edited by Makaila Williams 11/13/26
+        # Purpose: 409 means someone else got it first, the cart page uses that to take the item out
         if current_status != "active":
-            return jsonify({"error": "Listing is not available for purchase"}), 400
+            return jsonify({"error": "Listing is not available for purchase"}), 409
 
         if int(user_id) == int(seller_id):
             return jsonify({"error": "You cannot buy your own listing."}), 400
@@ -1113,12 +1115,15 @@ def confirm_purchase(listing_id):
     cur = conn.cursor()
 
     try:
+        # Edited by Makaila Williams 11/13/26
+        # Purpose: lock the listing first so a double click on Confirm cannot pay the seller twice
         cur.execute("""
             SELECT 
                 id, user_id, buyer_email, price, verification_pin, pin_expires_at,
                 pin_verified_by_seller, pin_verified_at, COALESCE(status, 'active')
             FROM listings
             WHERE id = %s
+            FOR UPDATE
         """, (listing_id,))
         row = cur.fetchone()
 

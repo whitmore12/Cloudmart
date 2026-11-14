@@ -60,6 +60,7 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
 
 .empty-state { text-align: center; padding: 80px 20px; color: #706b5f; }
 .empty-icon { font-size: 4rem; margin-bottom: 20px; }
+.cart-notice { background: #fff3ea; border: 1px solid #e25d3b; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
 
 @media (max-width: 600px) {
   .nav-menu { display: none; }
@@ -86,6 +87,10 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
   <div class="page-header">
     <h1>🛒 Your Shopping Cart</h1>
   </div>
+
+  <!-- Edited by Makaila Williams 11/13/26 -->
+  <!-- Purpose: tells the person when an item in their cart was taken out because it is gone -->
+  <div id="cartNotice" class="cart-notice" style="display: none;"></div>
 
   <div id="cartContent">
     <table class="cart-table">
@@ -208,7 +213,12 @@ async function initiatePurchase(listingId, user) {
     })
   });
   if (!res.ok) {
-    throw new Error(await res.json().error || "Could not initiate purchase.");
+    // Edited by Makaila Williams 11/13/26
+    // Purpose: show the real error from the server and keep the status code so checkout knows what happened
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.error || "Could not initiate purchase.");
+    err.status = res.status;
+    throw err;
   }
   return await res.json();
 }
@@ -227,39 +237,102 @@ async function checkout() {
 
   const items = [...new Map(cart.map(item => [Number(item.id), item])).values()];
   const purchaseResults = [];
+  // Edited by Makaila Williams 11/13/26
+  // Purpose: if someone else already got an item, skip it and take it out of the cart, and never lose the PINs of items that did go through
+  const goneIds = new Set();
+  const goneNames = [];
+  let failure = null;
   if (checkoutButton) checkoutButton.disabled = true;
 
   try {
     for (const item of items) {
-      const result = await initiatePurchase(item.id, user);
-      purchaseResults.push({
-        listingId: item.id,
-        title: item.title,
-        pin: result.verification_pin,
-        pin_expires_at: result.pin_expires_at
-      });
+      try {
+        const result = await initiatePurchase(item.id, user);
+        purchaseResults.push({
+          listingId: item.id,
+          title: item.title,
+          pin: result.verification_pin,
+          pin_expires_at: result.pin_expires_at
+        });
+      } catch (err) {
+        if (err.status === 404 || err.status === 409) {
+          goneIds.add(Number(item.id));
+          goneNames.push(item.title || "an item");
+        } else {
+          throw err;
+        }
+      }
     }
+  } catch (error) {
+    failure = error;
+  }
 
-    localStorage.setItem("cart", JSON.stringify([]));
-    
-    let message = "Checkout complete! Your purchases are now pending seller confirmation.\n\n";
+  // anything bought or gone leaves the cart, anything else stays so they can try again
+  const doneIds = new Set([...goneIds, ...purchaseResults.map(r => Number(r.listingId))]);
+  localStorage.setItem("cart", JSON.stringify(cart.filter(item => !doneIds.has(Number(item.id)))));
+
+  let message = "";
+  if (goneNames.length) {
+    message += "No longer available, so it was taken out of your cart: " + goneNames.join(", ") + ".\n\n";
+  }
+  if (purchaseResults.length) {
+    message += "Checkout complete! Your purchases are now pending seller confirmation.\n\n";
     message += "Share these PINs with each seller:\n\n";
     purchaseResults.forEach(r => {
       message += `• ${r.title}: PIN ${r.pin} (expires ${new Date(r.pin_expires_at).toLocaleString()})\n`;
     });
     message += "\nTrack status in your profile under 'Pending Listings'.";
-    
-    alert(message);
+  }
+  if (failure) {
+    message += (message ? "\n\n" : "") + (failure.message || "Could not complete checkout. Please try again.");
+  }
+  if (message) alert(message);
+
+  if (purchaseResults.length) {
     window.location.href = "profile.html#pendingListingsSection";
-  } catch (error) {
-    alert(error.message || "Could not complete checkout. Please try again.");
+  } else {
     renderCart();
     if (checkoutButton) checkoutButton.disabled = false;
   }
 }
 
 
+// Edited by Makaila Williams 11/13/26
+// Purpose: when the cart opens, check each item with the server and take out anything that is already gone
+async function removeGoneItems() {
+  const cart = JSON.parse(localStorage.getItem("cart")) || [];
+  const goneIds = new Set();
+  const goneNames = [];
+
+  for (const item of cart) {
+    try {
+      const res = await fetch(`${API}/api/listings/${parseInt(item.id)}`);
+      let gone = res.status === 404;
+      if (res.ok) {
+        const listing = await res.json();
+        gone = listing.status !== "active";
+      }
+      if (gone) {
+        goneIds.add(Number(item.id));
+        goneNames.push(item.title || "an item");
+      }
+    } catch (err) {
+      // if the check fails the item stays, checkout will still catch it
+    }
+  }
+
+  if (goneIds.size) {
+    localStorage.setItem("cart", JSON.stringify(cart.filter(item => !goneIds.has(Number(item.id)))));
+    const notice = document.getElementById("cartNotice");
+    notice.innerText = (goneNames.length === 1 ? "This item is" : "These items are") +
+      " no longer available, so " + (goneNames.length === 1 ? "it was" : "they were") +
+      " taken out of your cart: " + goneNames.join(", ") + ".";
+    notice.style.display = "block";
+  }
+}
+
 renderCart();
+removeGoneItems().then(renderCart);
 </script>
 </body>
 </html>
