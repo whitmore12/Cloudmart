@@ -1,4 +1,4 @@
-from word_filter import profanity
+from better_profanity import profanity
 
 profanity.load_censor_words()
 
