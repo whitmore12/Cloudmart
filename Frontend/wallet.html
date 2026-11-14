@@ -59,21 +59,25 @@ body { font-family: system-ui, Arial, sans-serif; background:#f3f0e7; color:#1d2
       <div class="balance-label">pirate_dollars</div>
     </div>
 
-    <div style="margin-bottom:24px;">
-      <h3 style="margin-bottom:12px;">Send Money</h3>
-      <form id="sendForm" onsubmit="sendMoney(event)">
-        <div class="form-group">
-          <label>Recipient Username</label>
-          <input type="text" id="recipient" placeholder="Enter username" required />
-        </div>
-        <div class="form-group">
-          <label>Amount</label>
-          <input type="number" id="amount" placeholder="0.00" step="0.01" min="0.01" required />
-        </div>
-        <button type="submit" class="btn btn-primary btn-full">Send</button>
-        <p id="sendMsg" class="muted"></p>
-      </form>
+<div style="margin-bottom:24px;">
+  <h3 style="margin-bottom:12px;">Send Money</h3>
+  <form id="sendForm" onsubmit="sendMoney(event)">
+    <div class="form-group">
+      <label>Recipient Username</label>
+      <input type="text" id="recipient" placeholder="Enter username" required />
     </div>
+    <div class="form-group">
+      <label>Amount</label>
+      <input type="number" id="amount" placeholder="0.00" step="0.01" min="0.01" required />
+    </div>
+    <div class="form-group" id="passwordGroup" style="display:none;">
+      <label>Re-enter Password</label>
+      <input type="password" id="confirmPassword" placeholder="Enter password" />
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">Send</button>
+    <p id="sendMsg" class="muted"></p>
+  </form>
+</div>
 
     <div style="margin-bottom:24px;">
       <h3 style="margin-bottom:12px;">Add or Remove Money</h3>
@@ -136,6 +140,8 @@ async function loadHistory() {
 
 async function sendMoney(e) {
   e.preventDefault();
+  if (document.activeElement) document.activeElement.blur();
+
   const msg = document.getElementById("sendMsg");
   const recipient = document.getElementById("recipient").value.trim();
   const amount = parseFloat(document.getElementById("amount").value);
@@ -146,6 +152,16 @@ async function sendMoney(e) {
     const userData = await userRes.json();
     if (!userRes.ok || !userData.id) throw new Error("User not found");
     if (userData.id === user.id) throw new Error("Cannot send to yourself");
+
+
+    const password = prompt("Re-enter your password to confirm transfer:");
+    if (!password) return; 
+
+    const authRes = await fetch(`${API}/api/auth/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: user.username, password })
+    });
+    if (!authRes.ok) throw new Error("Incorrect password");
 
     const res = await fetch(`${API}/api/wallet/transfer`, {
       method: "POST", headers: { "Content-Type": "application/json" },
