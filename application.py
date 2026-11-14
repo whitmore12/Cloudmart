@@ -14,6 +14,7 @@ import hmac
 import re
 import time
 from dotenv import load_dotenv
+from backend.Wallet import get_balance, update_money
 
                      
 """
@@ -25,8 +26,12 @@ load_dotenv()
 
 # S3 config
 from s3_config import s3, BUCKET_NAME, AWS_REGION
+from account_requests import initAccountRequests
+from word_filter import contains_profanity
 
 app = Flask(__name__)
+# Explicit WSGI alias for Vercel's Python entrypoint detector.
+handler = app
 CORS(app)
 
 
@@ -45,18 +50,35 @@ def frontend_file(filename):
     return send_from_directory("Frontend", filename)
 
 # Database & Tunnel Configuration
-SSH_HOST = os.getenv("SSH_HOST")
-SSH_USER = os.getenv("SSH_USER")
-SSH_KEY_PATH = os.getenv("SSH_KEY_PATH")
+app.config['SSH_HOST'] = os.environ.get("SSH_HOST")
+app.config['SSH_USER'] = os.environ.get("SSH_USER")
+app.config['SSH_KEY_PATH'] = os.environ.get("SSH_KEY_PATH")
 # RDS Configuration
-RDS_HOST = os.getenv("RDS_HOST")
-RDS_PORT = 5432
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER =os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+app.config['RDS_HOST'] = os.environ.get("RDS_HOST")
+RDS_PORT = int(os.environ.get("RDS_PORT", "5432"))
+app.config['DB_HOST'] = os.environ.get("DB_HOST")
+app.config['DB_NAME'] = os.environ.get("DB_NAME")
+app.config['DB_USER'] = os.environ.get("DB_USER")
+app.config['DB_PASSWORD'] = os.environ.get("DB_PASSWORD")
+
+# Database & Tunnel Configuration
+SSH_HOST = os.environ.get("SSH_HOST")
+SSH_USER = os.environ.get("SSH_USER")
+SSH_KEY_PATH = os.environ.get("SSH_KEY_PATH")
+# RDS Configuration - EB provides RDS_* vars, we also support DB_* vars
+RDS_HOST = os.environ.get("RDS_HOST") or os.environ.get("RDS_HOSTNAME")
+RDS_PORT = int(os.environ.get("RDS_PORT") or os.environ.get("RDS_PORT", "5432"))
+DB_HOST = os.environ.get("DB_HOST") or os.environ.get("RDS_HOSTNAME")
+DB_NAME = os.environ.get("DB_NAME") or os.environ.get("RDS_DB_NAME")
+DB_USER = os.environ.get("DB_USER") or os.environ.get("RDS_USERNAME")
+DB_PASSWORD = os.environ.get("DB_PASSWORD") or os.environ.get("RDS_PASSWORD")
+
+# Use SSH tunnel for local development, direct connection for EB
+USE_SSH_TUNNEL = os.environ.get("USE_SSH_TUNNEL", "true").lower() == "true"
 
 tunnel = None
+_db_initialized = False
+_force_reinit = True  # Set to True to force re-initialization
 
 
 def start_ssh_tunnel():
@@ -73,15 +95,81 @@ def start_ssh_tunnel():
     return tunnel
 
 
-def get_db_connection():
-    tun = start_ssh_tunnel()
+def _connect_db():
+    if USE_SSH_TUNNEL:
+        if not SSH_HOST:
+            raise RuntimeError("SSH_HOST is required when USE_SSH_TUNNEL=true")
+        if not RDS_HOST:
+            raise RuntimeError("RDS_HOST or RDS_HOSTNAME is required when USE_SSH_TUNNEL=true")
+        tun = start_ssh_tunnel()
+        db_host = "127.0.0.1"
+        db_port = tun.local_bind_port
+    else:
+        db_host = DB_HOST or RDS_HOST or os.environ.get("RDS_HOSTNAME")
+        if not db_host:
+            raise RuntimeError("DB_HOST or RDS_HOSTNAME is required when USE_SSH_TUNNEL=false")
+        db_port = RDS_PORT
+
     return psycopg.connect(
-        host="127.0.0.1",
-        port=tun.local_bind_port,
+        host=db_host,
+        port=db_port,
         dbname=DB_NAME,
         user=DB_USER,
-        password=DB_PASSWORD
+        password=DB_PASSWORD,
     )
+
+
+def get_db_connection():
+    global _db_initialized, _force_reinit
+    conn = _connect_db()
+
+    if not _db_initialized or _force_reinit:
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM users LIMIT 1")
+            cur.execute("SELECT pirate_dollars FROM users LIMIT 1")
+            cur.close()
+            _db_initialized = True
+            _force_reinit = False
+        except Exception:
+            conn.close()
+            try:
+                init_db()
+                _db_initialized = True
+                _force_reinit = False
+            except Exception as e:
+                print(f"Auto-init failed: {e}")
+            return _connect_db()
+
+    return conn
+
+
+def log_action(who, action, target):
+    """Logs an action to the action_logs database table."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO action_logs (who, action, target)
+            VALUES (%s, %s, %s)
+        """, (str(who), str(action), str(target)))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"Failed to record action log: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+# Account deletion requests (Makaila)
+def remove_profile_image(image_url):
+    prefix = "/api/profile-images/"
+    if image_url and image_url.startswith(prefix + "profiles/"):
+        s3.delete_object(Bucket=BUCKET_NAME, Key=image_url[len(prefix):])
+
+
+# the lambda looks get_db_connection up each time so tests can swap it
+initAccountRequests(app, lambda: get_db_connection(), remove_profile_image, log_action)
 
 
 def init_db():
@@ -96,6 +184,7 @@ def init_db():
         password_hash TEXT,
         role VARCHAR(20) DEFAULT 'user',
         profile_image TEXT,
+        pirate_dollars NUMERIC DEFAULT 100.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -114,6 +203,16 @@ def init_db():
     cur.execute("""
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS profile_image TEXT
+    """)
+
+    cur.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'
+    """)
+
+    cur.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS pirate_dollars NUMERIC DEFAULT 100.00
     """)
 
     cur.execute("""
@@ -143,6 +242,31 @@ def init_db():
     ALTER TABLE listings
     ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'
     """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS size VARCHAR(20)
+    """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS fit VARCHAR(20)
+    """)
+
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS verification_pin VARCHAR(4)
+    """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS pin_expires_at TIMESTAMP
+    """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS pin_verified_by_seller BOOLEAN DEFAULT FALSE
+    """)
+    cur.execute("""
+    ALTER TABLE listings
+    ADD COLUMN IF NOT EXISTS pin_verified_at TIMESTAMP
+    """)
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS wishlist (
@@ -151,6 +275,17 @@ def init_db():
         listing_id INTEGER REFERENCES listings(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, listing_id)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY,
+        from_user_id INTEGER REFERENCES users(id),
+        to_user_id INTEGER REFERENCES users(id),
+        amount NUMERIC,
+        type VARCHAR(20),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
@@ -178,6 +313,37 @@ def init_db():
     ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS action_logs 
+    (
+       id SERIAL PRIMARY KEY,
+       who VARCHAR(255) NOT NULL,
+       action VARCHAR(100) NOT NULL,
+       target VARCHAR(255) NOT NULL,
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   )
+       """)
+
+    # In-app messaging: one row per message
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+        body TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_read BOOLEAN NOT NULL DEFAULT FALSE
+    )
+    """)
+    cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_url TEXT")
+    cur.execute("ALTER TABLE messages ALTER COLUMN body DROP NOT NULL")
+
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_messages_chat
+    ON messages (listing_id, sender_id, receiver_id, created_at)
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
@@ -194,6 +360,8 @@ def register():
     password = data.get("password") or ""
     if not email or not username or not password:
         return jsonify({"error": "Email, username, and password are required."}), 400
+    if contains_profanity(username):
+        return jsonify({"error": "Username contains inappropriate language."}), 400
     if not email.endswith("@my.hamptonu.edu"):
         return jsonify({"error": "Use a Hampton email address."}), 400
     if len(password) < 8:
@@ -485,6 +653,31 @@ def generate_presigned_upload_url():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/uploads/message-presign", methods=["POST", "OPTIONS"])
+def generate_message_presigned_upload_url():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True}), 200
+
+    data = request.get_json() or {}
+    file_name = data.get("fileName")
+    file_type = data.get("fileType") or ""
+    if not file_name or not file_type.startswith("image/"):
+        return jsonify({"error": "An image file is required"}), 400
+
+    try:
+        ext = os.path.splitext(file_name)[1] or ".jpg"
+        unique_name = f"messages/{uuid.uuid4()}{ext}"
+        upload_url = s3.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": BUCKET_NAME, "Key": unique_name, "ContentType": file_type},
+            ExpiresIn=300
+        )
+        image_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{unique_name}"
+        return jsonify({"uploadUrl": upload_url, "imageUrl": image_url}), 200
+    except Exception:
+        app.logger.exception("Message image presign failed")
+        return jsonify({"error": "Could not prepare message image upload"}), 500
+
 #Nickodemus
 @app.route("/api/uploads/profile-presign", methods=["POST", "OPTIONS"])
 def generate_profile_presigned_upload_url():
@@ -606,10 +799,57 @@ def serve_listing_image(key):
 # ========================
 # LISTINGS
 # ========================
+
+# Edited by Makaila Williams 11/12/26
+# Purpose: make sure the category, condition, size and fit are real choices
+# the dropdowns on the sell page can be changed in the browser, so the server checks them too
+ALLOWED_CATEGORIES = [
+    "Clothing", "Shoes", "Bags & Accessories", "Electronics", "Books",
+    "Furniture", "Appliances", "Dorm & Home", "Beauty", "Other",
+]
+ALLOWED_CONDITIONS = ["New", "Used"]
+ALLOWED_FITS = ["Women's", "Men's", "Unisex"]
+SIZES_BY_CATEGORY = {
+    "Clothing": ["XS", "S", "M", "L", "XL", "XXL"],
+    "Shoes": ["US " + str(n) for n in range(1, 16)],
+}
+
+
+def check_listing_fields(data):
+    # gives back an error message, or None if it is all good
+    category = data.get("category")
+    if category not in ALLOWED_CATEGORIES:
+        return "Please pick a valid category."
+    if data.get("condition") not in ALLOWED_CONDITIONS:
+        return "Please pick a valid condition."
+
+    # only clothing and shoes need a size and fit
+    if category in SIZES_BY_CATEGORY:
+        if data.get("fit") not in ALLOWED_FITS:
+            return "Please pick a fit."
+        if data.get("size") not in SIZES_BY_CATEGORY[category]:
+            return "Please pick a valid size."
+    return None
+
+
+def size_and_fit(data):
+    # every other category gets no size or fit saved
+    if data.get("category") in SIZES_BY_CATEGORY:
+        return data.get("size"), data.get("fit")
+    return None, None
+
+
 @app.route("/api/listings", methods=["POST"])
 def create_listing():
     data = request.get_json()
     image = data.get("image") or "https://picsum.photos/300"
+
+    field_error = check_listing_fields(data)
+    if field_error:
+        return jsonify({"error": field_error}), 400
+    if contains_profanity(data.get("title")):
+        return jsonify({"error": "Title contains inappropriate language."}), 400
+    size, fit = size_and_fit(data)
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -623,8 +863,8 @@ def create_listing():
         seller_name = seller_row[0]
 
         cur.execute("""
-            INSERT INTO listings (user_id, title, price, category, condition, image, seller, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO listings (user_id, title, price, category, condition, image, seller, status, size, fit)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             data["user_id"],
@@ -634,7 +874,9 @@ def create_listing():
             data["condition"],
             image,
             seller_name,
-            "active"
+            "active",
+            size,
+            fit
         ))
 
         new_listing_id = cur.fetchone()[0]
@@ -665,7 +907,9 @@ def get_listings():
             l.image,
             COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
             COALESCE(l.status, 'active') AS status,
-            l.buyer_email
+            l.buyer_email,
+            l.size,
+            l.fit
         FROM listings l
         LEFT JOIN users u ON l.user_id = u.id
         WHERE COALESCE(l.status, 'active') = 'active'
@@ -686,7 +930,9 @@ def get_listings():
     "image": r[6],
     "seller": r[7],
     "status": r[8],
-    "buyer_email": r[9]
+    "buyer_email": r[9],
+    "size": r[10],
+    "fit": r[11]
     } for r in rows]), 200
 
 
@@ -706,7 +952,9 @@ def get_listing_by_id(listing_id):
             l.image,
             COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
             COALESCE(l.status, 'active') AS status,
-            l.buyer_email
+            l.buyer_email,
+            l.size,
+            l.fit
         FROM listings l
         LEFT JOIN users u ON l.user_id = u.id
         WHERE l.id = %s
@@ -729,7 +977,9 @@ def get_listing_by_id(listing_id):
     "image": row[6],
     "seller": row[7],
     "status": row[8],
-    "buyer_email": row[9]
+    "buyer_email": row[9],
+    "size": row[10],
+    "fit": row[11]
     }), 200
 
 
@@ -738,6 +988,13 @@ def update_listing(listing_id):
     data = request.get_json()
     user_id = data.get("user_id")
     user_role = data.get("role")
+
+    field_error = check_listing_fields(data)
+    if field_error:
+        return jsonify({"error": field_error}), 400
+    if contains_profanity(data.get("title")):
+        return jsonify({"error": "Title contains inappropriate language."}), 400
+    size, fit = size_and_fit(data)
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -758,7 +1015,9 @@ def update_listing(listing_id):
                 price = %s,
                 category = %s,
                 condition = %s,
-                image = %s
+                image = %s,
+                size = %s,
+                fit = %s
             WHERE id = %s
         """, (
             data["title"],
@@ -766,6 +1025,8 @@ def update_listing(listing_id):
             data["category"],
             data["condition"],
             data["image"],
+            size,
+            fit,
             listing_id
         ))
 
@@ -783,12 +1044,19 @@ def update_listing(listing_id):
 @app.route("/api/listings/<int:listing_id>/mark-sold", methods=["PUT"])
 def mark_listing_sold(listing_id):
     data = request.get_json()
+ # ========================
+ # PURCHASE FLOW: Buyer initiates -> Seller confirms with PIN
+ # ========================
+
+@app.route("/api/listings/<int:listing_id>/initiate-purchase", methods=["POST"])
+def initiate_purchase(listing_id):
+    """Buyer initiates purchase. Generates PIN, sets status to 'pending', holds funds."""
+    data = request.get_json() or {}
     user_id = data.get("user_id")
     user_role = data.get("role")
-    buyer_email = (data.get("buyer_email") or "").strip().lower()
 
-    if not buyer_email:
-        return jsonify({"error": "Buyer email is required"}), 400
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -802,72 +1070,306 @@ def mark_listing_sold(listing_id):
 
         seller_id, price, current_status = row[0], float(row[1] or 0), (row[2] or "active").lower()
 
-        if current_status == "sold":
-            return jsonify({"error": "Listing is already sold"}), 400
+        # Edited by Makaila Williams 11/13/26
+        # Purpose: 409 means someone else got it first, the cart page uses that to take the item out
+        if current_status != "active":
+            return jsonify({"error": "Listing is not available for purchase"}), 409
 
-        if current_status == "deleted":
-            return jsonify({"error": "Deleted listings cannot be marked as sold"}), 400
-
-        cur.execute("SELECT id, email FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
-        buyer_row = cur.fetchone()
-
-        if not buyer_row:
-            return jsonify({"error": "Buyer email does not belong to a registered user"}), 400
-
-        buyer_id = buyer_row[0]
-
-        if int(buyer_id) == int(seller_id):
+        if int(user_id) == int(seller_id):
             return jsonify({"error": "You cannot buy your own listing."}), 400
-        
-        if user_role != "admin" and int(user_id) not in (int(seller_id), int(buyer_id)):
-            return jsonify({"error": "Not authorized"}), 403
 
         # Check buyer has sufficient funds
-        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (buyer_id,))
+        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (user_id,))
         buyer_balance_row = cur.fetchone()
         if not buyer_balance_row or float(buyer_balance_row[0]) < price:
             conn.rollback()
             return jsonify({"error": "Insufficient funds"}), 400
 
-        # Lock seller row
-        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (seller_id,))
-        seller_balance_row = cur.fetchone()
-        if not seller_balance_row:
-            conn.rollback()
-            return jsonify({"error": "Seller not found"}), 404
+        import secrets
+        from datetime import datetime, timedelta
+        
+        pin = f"{secrets.randbelow(10000):04d}"
+        pin_expires_at = datetime.utcnow() + timedelta(hours=24)
 
-        # Transfer funds
         new_buyer_balance = float(buyer_balance_row[0]) - price
-        new_seller_balance = float(seller_balance_row[0]) + price
+        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_buyer_balance, user_id))
 
-        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_buyer_balance, buyer_id))
-        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_seller_balance, seller_id))
-
-        # Record transactions
         cur.execute("""
             INSERT INTO transactions (from_user_id, to_user_id, amount, type)
-            VALUES (%s, %s, %s, 'purchase')
-        """, (buyer_id, seller_id, price))
-        cur.execute("""
-            INSERT INTO transactions (from_user_id, to_user_id, amount, type)
-            VALUES (%s, %s, %s, 'sale')
-        """, (buyer_id, seller_id, price))
+            VALUES (%s, %s, %s, 'purchase_pending')
+        """, (user_id, seller_id, price))
 
-        # Mark listing as sold
         cur.execute("""
             UPDATE listings
-            SET status = 'sold',
-                buyer_email = %s
+            SET status = 'pending',
+                buyer_email = (SELECT email FROM users WHERE id = %s),
+                verification_pin = %s,
+                pin_expires_at = %s,
+                pin_verified_by_seller = FALSE,
+                pin_verified_at = NULL
             WHERE id = %s
               AND COALESCE(status, 'active') = 'active'
-        """, (buyer_row[1], listing_id))
+        """, (user_id, pin, pin_expires_at, listing_id))
 
         if cur.rowcount != 1:
             conn.rollback()
             return jsonify({"error": "Listing is no longer available"}), 409
 
         conn.commit()
-        return jsonify({"success": True, "message": "Listing marked as sold"}), 200
+        return jsonify({
+            "success": True, 
+            "message": "Purchase initiated. Share the PIN with the seller.",
+            "verification_pin": pin,
+            "pin_expires_at": pin_expires_at.isoformat(),
+            "status": "pending"
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route("/api/listings/<int:listing_id>/confirm-purchase", methods=["POST"])
+def confirm_purchase(listing_id):
+    """Seller confirms purchase with PIN. Transfers funds, marks as sold."""
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    user_role = data.get("role")
+    pin = (data.get("pin") or "").strip()
+
+    if not pin or len(pin) != 4 or not pin.isdigit():
+        return jsonify({"error": "Valid 4-digit PIN is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        # Edited by Makaila Williams 11/13/26
+        # Purpose: lock the listing first so a double click on Confirm cannot pay the seller twice
+        cur.execute("""
+            SELECT 
+                id, user_id, buyer_email, price, verification_pin, pin_expires_at,
+                pin_verified_by_seller, pin_verified_at, COALESCE(status, 'active')
+            FROM listings
+            WHERE id = %s
+            FOR UPDATE
+        """, (listing_id,))
+        row = cur.fetchone()
+
+        if not row:
+            return jsonify({"error": "Listing not found"}), 404
+
+        listing_id_db, seller_id, buyer_email, price, stored_pin, pin_expires_at, verified_by_seller, pin_verified_at, current_status = row
+
+        if current_status != "pending":
+            return jsonify({"error": "Listing is not in pending state"}), 400
+
+        if not stored_pin:
+            return jsonify({"error": "No PIN set for this listing"}), 400
+
+        if pin != stored_pin:
+            return jsonify({"error": "Invalid PIN"}), 401
+
+        if pin_expires_at and datetime.utcnow() > pin_expires_at:
+            cur.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
+            buyer_row = cur.fetchone()
+            if buyer_row:
+                buyer_id = buyer_row[0]
+                cur.execute("UPDATE users SET pirate_dollars = pirate_dollars + %s WHERE id = %s", (price, buyer_id))
+                cur.execute("""
+                    INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                    VALUES (%s, %s, %s, 'refund')
+                """, (seller_id, buyer_id, price))
+            
+            cur.execute("""
+                UPDATE listings
+                SET status = 'active',
+                    buyer_email = NULL,
+                    verification_pin = NULL,
+                    pin_expires_at = NULL,
+                    pin_verified_by_seller = FALSE,
+                    pin_verified_at = NULL
+                WHERE id = %s
+            """, (listing_id,))
+            conn.commit()
+            return jsonify({"error": "PIN has expired. Purchase cancelled, funds refunded."}), 401
+
+        if int(user_id) != int(seller_id) and user_role != "admin":
+            return jsonify({"error": "Only the seller can confirm this purchase"}), 403
+
+        if verified_by_seller:
+            return jsonify({"error": "Purchase already confirmed"}), 400
+
+        cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (seller_id,))
+        seller_balance_row = cur.fetchone()
+        if not seller_balance_row:
+            conn.rollback()
+            return jsonify({"error": "Seller not found"}), 404
+
+        new_seller_balance = float(seller_balance_row[0]) + float(price)
+        cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_seller_balance, seller_id))
+
+        cur.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
+        buyer_row = cur.fetchone()
+        buyer_id = buyer_row[0] if buyer_row else None
+        
+        if buyer_id:
+            cur.execute("""
+                INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                VALUES (%s, %s, %s, 'purchase')
+            """, (buyer_id, seller_id, price))
+            cur.execute("""
+                INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                VALUES (%s, %s, %s, 'sale')
+            """, (buyer_id, seller_id, price))
+
+        cur.execute("""
+            UPDATE listings
+            SET status = 'sold',
+                pin_verified_by_seller = TRUE,
+                pin_verified_at = CURRENT_TIMESTAMP,
+                verification_pin = NULL,
+                pin_expires_at = NULL
+            WHERE id = %s
+        """, (listing_id,))
+
+        conn.commit()
+        return jsonify({
+            "success": True,
+            "message": "Purchase confirmed. Listing marked as sold.",
+            "status": "sold"
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route("/api/listings/<int:listing_id>/get-pin", methods=["GET"])
+def get_pin(listing_id):
+    user_id = request.args.get("user_id", type=int)
+    user_role = request.args.get("role")
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            SELECT 
+                id, user_id, buyer_email, verification_pin, pin_expires_at,
+                pin_verified_by_seller, pin_verified_at, COALESCE(status, 'active')
+            FROM listings
+            WHERE id = %s
+        """, (listing_id,))
+        row = cur.fetchone()
+
+        if not row:
+            return jsonify({"error": "Listing not found"}), 404
+
+        listing_id_db, seller_id, buyer_email, stored_pin, pin_expires_at, verified_by_seller, pin_verified_at, current_status = row
+
+        if not stored_pin:
+            return jsonify({"error": "No PIN set for this listing"}), 400
+
+        is_buyer = False
+        is_seller = False
+        
+        cur.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
+        buyer_row = cur.fetchone()
+        buyer_id = buyer_row[0] if buyer_row else None
+
+        if buyer_id and int(user_id) == int(buyer_id):
+            is_buyer = True
+        elif int(user_id) == int(seller_id):
+            is_seller = True
+        elif user_role != "admin":
+            return jsonify({"error": "Not authorized to view this PIN"}), 403
+
+        return jsonify({
+            "success": True,
+            "verification_pin": stored_pin,
+            "pin_expires_at": pin_expires_at.isoformat() if pin_expires_at else None,
+            "pin_verified_by_seller": verified_by_seller,
+            "pin_verified_at": pin_verified_at.isoformat() if pin_verified_at else None,
+            "status": current_status,
+            "is_buyer": is_buyer,
+            "is_seller": is_seller
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route("/api/listings/<int:listing_id>/admin-bypass-pin", methods=["POST"])
+def admin_bypass_pin(listing_id):
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    user_role = data.get("role")
+
+    if user_role != "admin":
+        return jsonify({"error": "Admin access required"}), 403
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("SELECT id, price, buyer_email, user_id FROM listings WHERE id = %s", (listing_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Listing not found"}), 404
+
+        listing_id_db, price, buyer_email, seller_id = row
+
+        cur.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (buyer_email,))
+        buyer_row = cur.fetchone()
+        buyer_id = buyer_row[0] if buyer_row else None
+
+        if buyer_id:
+            cur.execute("SELECT pirate_dollars FROM users WHERE id = %s FOR UPDATE", (seller_id,))
+            seller_balance_row = cur.fetchone()
+            if seller_balance_row:
+                new_seller_balance = float(seller_balance_row[0]) + float(price)
+                cur.execute("UPDATE users SET pirate_dollars = %s WHERE id = %s", (new_seller_balance, seller_id))
+
+                cur.execute("""
+                    INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                    VALUES (%s, %s, %s, 'purchase')
+                """, (buyer_id, seller_id, price))
+                cur.execute("""
+                    INSERT INTO transactions (from_user_id, to_user_id, amount, type)
+                    VALUES (%s, %s, %s, 'sale')
+                """, (buyer_id, seller_id, price))
+
+        cur.execute("""
+            UPDATE listings
+            SET status = 'sold',
+                pin_verified_by_seller = TRUE,
+                pin_verified_at = CURRENT_TIMESTAMP,
+                verification_pin = NULL,
+                pin_expires_at = NULL
+            WHERE id = %s
+        """, (listing_id,))
+
+        conn.commit()
+        return jsonify({
+            "success": True,
+            "message": "Purchase confirmed by admin. Listing marked as sold."
+        }), 200
 
     except Exception as e:
         conn.rollback()
@@ -953,6 +1455,9 @@ def delete_listing(listing_id):
         """, (listing_id,))
 
         conn.commit()
+
+        actor = f"Admin (ID: {user_id})" if user_role == "admin" else f"User {user_id}"
+        log_action(actor, "DELETE_LISTING", f"Listing #{listing_id}")
         return jsonify({"success": True, "message": "Listing soft deleted"}), 200
 
     except Exception as e:
@@ -1169,6 +1674,132 @@ def get_bought_items(buyer_email):
         "return_created_at": str(r[14]) if r[14] else None,
         "return_reviewed_at": str(r[15]) if r[15] else None
     } for r in rows]), 200
+
+
+@app.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
+@app.route("/api/listings/pending/<path:buyer_email>", methods=["GET"])
+def get_pending_purchases(buyer_email):
+    """Get all pending purchases for a buyer (listings where buyer initiated but seller hasn't confirmed)"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            l.id,
+            l.user_id,
+            l.title,
+            l.price,
+            l.category,
+            l.condition,
+            l.image,
+            COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+            COALESCE(l.status, 'active') AS status,
+            l.buyer_email,
+            l.verification_pin,
+            l.pin_expires_at,
+            l.pin_verified_by_seller,
+            l.pin_verified_at
+        FROM listings l
+        LEFT JOIN users u ON l.user_id = u.id
+        WHERE LOWER(COALESCE(l.buyer_email, '')) = LOWER(%s)
+           AND COALESCE(l.status, 'active') = 'pending'
+        ORDER BY l.id DESC
+    """, (buyer_email,))
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return jsonify([{
+        "id": r[0],
+        "user_id": r[1],
+        "title": r[2],
+        "price": float(r[3]) if r[3] is not None else 0,
+        "category": r[4],
+        "condition": r[5],
+        "image": r[6],
+        "seller": r[7],
+        "status": r[8],
+        "buyer_email": r[9],
+        "verification_pin": r[10],
+        "pin_expires_at": r[11].isoformat() if r[11] else None,
+        "pin_verified_by_seller": r[12],
+        "pin_verified_at": r[13].isoformat() if r[13] else None
+    } for r in rows]), 200
+
+
+@app.route("/api/listings/pending", methods=["GET"])
+def get_pending_listings():
+    """Get pending listings for current user - works for both buyers and sellers"""
+    user_id = request.args.get("user_id", type=int)
+    user_role = request.args.get("role")
+    
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        if user_role == "admin":
+            # Admin sees all pending
+            cur.execute("""
+                SELECT
+                    l.id, l.user_id, l.title, l.price, l.category, l.condition,
+                    l.image, COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+                    COALESCE(l.status, 'active') AS status, l.buyer_email,
+                    l.verification_pin, l.pin_expires_at,
+                    l.pin_verified_by_seller, l.pin_verified_at
+                FROM listings l
+                LEFT JOIN users u ON l.user_id = u.id
+                WHERE COALESCE(l.status, 'active') = 'pending'
+                ORDER BY l.id DESC
+            """)
+        else:
+            # Check if user is buyer or seller for each pending listing
+            cur.execute("""
+                SELECT
+                    l.id, l.user_id, l.title, l.price, l.category, l.condition,
+                    l.image, COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+                    COALESCE(l.status, 'active') AS status, l.buyer_email,
+                    l.verification_pin, l.pin_expires_at,
+                    l.pin_verified_by_seller, l.pin_verified_at
+                FROM listings l
+                LEFT JOIN users u ON l.user_id = u.id
+                WHERE COALESCE(l.status, 'active') = 'pending'
+                  AND (
+                      (l.user_id = %s)  -- seller's own pending listings
+                      OR (LOWER(COALESCE(l.buyer_email, '')) = (
+                          SELECT LOWER(email) FROM users WHERE id = %s
+                      ))  -- buyer's pending purchases
+                  )
+                ORDER BY l.id DESC
+            """, (user_id, user_id))
+
+        rows = cur.fetchall()
+        
+        return jsonify([{
+            "id": r[0],
+            "user_id": r[1],
+            "title": r[2],
+            "price": float(r[3]) if r[3] is not None else 0,
+            "category": r[4],
+            "condition": r[5],
+            "image": r[6],
+            "seller": r[7],
+            "status": r[8],
+            "buyer_email": r[9],
+            "verification_pin": r[10],
+            "pin_expires_at": r[11].isoformat() if r[11] else None,
+            "pin_verified_by_seller": r[12],
+            "pin_verified_at": r[13].isoformat() if r[13] else None
+        } for r in rows]), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 
 @app.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
@@ -1415,6 +2046,9 @@ def review_return_request(return_id):
             """, (listing_id,))
 
         conn.commit()
+      
+        actor = f"Admin (ID: {user_id})" if user_role == "admin" else f"User {user_id}"
+        log_action(actor, "DELETE_LISTING", f"Listing #{listing_id}")
 
         return jsonify({
             "success": True,
@@ -1431,6 +2065,263 @@ def review_return_request(return_id):
 
 
 # ========================
+# MESSAGES (in-app messaging, no live chat)
+# ========================
+MAX_MESSAGE_LENGTH = 2000
+
+
+# 1) Send a message about an item
+@app.route("/api/messages", methods=["POST"])
+def send_message():
+    data = request.get_json() or {}
+    sender_id = data.get("sender_id")
+    receiver_id = data.get("receiver_id")
+    listing_id = data.get("listing_id")
+    body = (data.get("body") or "").strip()
+    image_url = (data.get("image_url") or "").strip() or None
+
+    if not sender_id or not receiver_id or not listing_id or (not body and not image_url):
+        return jsonify({"error": "sender_id, receiver_id, listing_id, and a message or image are required"}), 400
+
+    try:
+        sender_id = int(sender_id)
+        receiver_id = int(receiver_id)
+        listing_id = int(listing_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "sender_id, receiver_id, and listing_id must be numbers"}), 400
+
+    if sender_id == receiver_id:
+        return jsonify({"error": "You cannot message yourself"}), 400
+
+    if len(body) > MAX_MESSAGE_LENGTH:
+        return jsonify({"error": f"Message must be {MAX_MESSAGE_LENGTH} characters or fewer"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("SELECT id FROM users WHERE id IN (%s, %s)", (sender_id, receiver_id))
+        if len(cur.fetchall()) != 2:
+            return jsonify({"error": "Sender or receiver not found"}), 404
+
+        cur.execute("SELECT user_id FROM listings WHERE id = %s", (listing_id,))
+        listing_row = cur.fetchone()
+        if not listing_row:
+            return jsonify({"error": "Listing not found"}), 404
+
+        seller_id = listing_row[0]
+
+        # Every chat is between the item's seller and one other user
+        if sender_id != seller_id and receiver_id != seller_id:
+            return jsonify({"error": "Messages about an item must involve its seller"}), 403
+
+        cur.execute("""
+            INSERT INTO messages (sender_id, receiver_id, listing_id, body, image_url, is_read)
+            VALUES (%s, %s, %s, %s, %s, FALSE)
+            RETURNING id, created_at
+        """, (sender_id, receiver_id, listing_id, body, image_url))
+        new_row = cur.fetchone()
+        conn.commit()
+
+        return jsonify({
+            "success": True,
+            "message": {
+                "id": new_row[0],
+                "sender_id": sender_id,
+                "receiver_id": receiver_id,
+                "listing_id": listing_id,
+                "body": body,
+                "image_url": image_url,
+                "created_at": str(new_row[1]),
+                "is_read": False
+            }
+        }), 201
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+# 2) List my chats (one per item + other person, newest first)
+@app.route("/api/messages/chats", methods=["GET"])
+def list_my_chats():
+    user_id = request.args.get("user_id", type=int)
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            WITH my_msgs AS (
+                SELECT m.*,
+                       CASE WHEN m.sender_id = %s THEN m.receiver_id ELSE m.sender_id END AS other_id
+                FROM messages m
+                WHERE m.sender_id = %s OR m.receiver_id = %s
+            )
+            SELECT DISTINCT ON (mm.listing_id, mm.other_id)
+                mm.listing_id,
+                l.title,
+                l.image,
+                mm.other_id,
+                u.username,
+                mm.body,
+                mm.created_at,
+                mm.sender_id,
+                (
+                    SELECT COUNT(*)
+                    FROM messages x
+                    WHERE x.listing_id = mm.listing_id
+                      AND x.sender_id = mm.other_id
+                      AND x.receiver_id = %s
+                      AND x.is_read = FALSE
+                ) AS unread_count
+            FROM my_msgs mm
+            JOIN listings l ON l.id = mm.listing_id
+            JOIN users u ON u.id = mm.other_id
+            ORDER BY mm.listing_id, mm.other_id, mm.created_at DESC, mm.id DESC
+        """, (user_id, user_id, user_id, user_id))
+
+        rows = cur.fetchall()
+
+        chats = [{
+            "listing_id": r[0],
+            "listing_title": r[1],
+            "listing_image": r[2],
+            "other_user_id": r[3],
+            "other_username": r[4],
+            "last_message": r[5],
+            "last_message_time": str(r[6]),
+            "last_message_from_me": r[7] == user_id,
+            "unread_count": r[8]
+        } for r in rows]
+
+        # Newest conversation first
+        chats.sort(key=lambda c: c["last_message_time"], reverse=True)
+
+        return jsonify(chats), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+# 3) Open one chat (all messages for one item between me and one other person)
+@app.route("/api/messages/chat", methods=["GET"])
+def get_chat():
+    user_id = request.args.get("user_id", type=int)
+    other_user_id = request.args.get("other_user_id", type=int)
+    listing_id = request.args.get("listing_id", type=int)
+
+    if not user_id or not other_user_id or not listing_id:
+        return jsonify({"error": "user_id, other_user_id, and listing_id are required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            SELECT l.id, l.title, l.image, l.user_id, u.username
+            FROM listings l, users u
+            WHERE l.id = %s AND u.id = %s
+        """, (listing_id, other_user_id))
+        info = cur.fetchone()
+
+        if not info:
+            return jsonify({"error": "Listing or user not found"}), 404
+
+        cur.execute("""
+            SELECT id, sender_id, receiver_id, body, image_url, created_at, is_read
+            FROM messages
+            WHERE listing_id = %s
+              AND (
+                    (sender_id = %s AND receiver_id = %s)
+                 OR (sender_id = %s AND receiver_id = %s)
+              )
+            ORDER BY created_at ASC, id ASC
+        """, (listing_id, user_id, other_user_id, other_user_id, user_id))
+
+        rows = cur.fetchall()
+
+        return jsonify({
+            "listing": {
+                "id": info[0],
+                "title": info[1],
+                "image": info[2],
+                "seller_id": info[3]
+            },
+            "other_user": {
+                "id": other_user_id,
+                "username": info[4]
+            },
+            "messages": [{
+                "id": r[0],
+                "sender_id": r[1],
+                "receiver_id": r[2],
+                "body": r[3],
+                "image_url": r[4],
+                "created_at": str(r[5]),
+                "is_read": r[6]
+            } for r in rows]
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+# 4) Mark a chat as read (only messages sent TO me)
+@app.route("/api/messages/read", methods=["PUT"])
+def mark_chat_read():
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    other_user_id = data.get("other_user_id")
+    listing_id = data.get("listing_id")
+
+    if not user_id or not other_user_id or not listing_id:
+        return jsonify({"error": "user_id, other_user_id, and listing_id are required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            UPDATE messages
+            SET is_read = TRUE
+            WHERE receiver_id = %s
+              AND sender_id = %s
+              AND listing_id = %s
+              AND is_read = FALSE
+        """, (user_id, other_user_id, listing_id))
+
+        updated = cur.rowcount
+        conn.commit()
+
+        return jsonify({"success": True, "marked_read": updated}), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ========================
+
 # WISHLIST
 # ========================
 @app.route("/api/wishlist", methods=["GET"])
@@ -1537,8 +2428,14 @@ def get_wallet_balance():
     if not user_id:
         return jsonify({"error": "user_id required"}), 400
     try:
-        from backend.Wallet import get_balance
-        return jsonify({"balance": get_balance(user_id)}), 200
+        conn = get_db_connection()
+        try:
+            balance = get_balance(conn.cursor(), user_id)
+        finally:
+            conn.close()
+        if balance is None:
+            return jsonify({"error": "User not found"}), 404
+        return jsonify({"balance": balance}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1553,6 +2450,37 @@ def get_wallet_history():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/wallet/adjust", methods=["POST"])
+def wallet_adjust():
+    data = request.get_json()
+    action = data.get("action")
+    user_id = data.get("user_id")
+    amount = float(data.get("amount", 0))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    current_balance = get_balance(cur, user_id)
+    if current_balance is None:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    if action == "add":
+        new_balance = current_balance + amount
+    elif action == "remove":
+        if current_balance < amount:
+            conn.close()
+            return jsonify({"error": "Insufficient funds"}), 400
+        new_balance = current_balance - amount
+    else:
+        conn.close()
+        return jsonify({"error": "Invalid action"}), 400
+
+    update_money(conn, cur, user_id, new_balance)
+    conn.close()
+
+    return jsonify({"success": True, "balance": float(new_balance)}), 200
+
 @app.route("/api/wallet/transfer", methods=["POST"])
 def wallet_transfer():
     data = request.get_json() or {}
@@ -1564,7 +2492,11 @@ def wallet_transfer():
         return jsonify({"error": "Invalid parameters"}), 400
     try:
         from backend.Wallet import transfer_money
-        result = transfer_money(buyer_id, seller_id, amount)
+        conn = get_db_connection()
+        try:
+            result = transfer_money(conn, buyer_id, seller_id, amount)
+        finally:
+            conn.close()
         return jsonify({"success": result == 0, "error": "Insufficient funds" if result else None}), 200 if result == 0 else 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1579,6 +2511,9 @@ def get_admin_dashboard():
 
     if role != "admin":
         return jsonify({"error": "Forbidden"}), 403
+
+   #  LOG ACTION 
+    log_action("Admin", "VIEW_ADMIN_DASHBOARD", "Admin Dashboard")
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1595,6 +2530,14 @@ def get_admin_dashboard():
 
         cur.execute("SELECT COALESCE(SUM(price), 0) FROM listings")
         total_value = cur.fetchone()[0]
+
+        cur.execute("""
+            SELECT id, who, action, target, created_at
+            FROM action_logs
+            ORDER BY created_at DESC
+            LIMIT 50
+        """)
+        action_log_rows = cur.fetchall()
 
         cur.execute("""
             SELECT id, email, username, role, created_at
@@ -1637,6 +2580,8 @@ def get_admin_dashboard():
             ORDER BY rr.created_at DESC
         """)
         return_request_rows = cur.fetchall()
+
+        
 
         return jsonify({
             "summary": {
@@ -1684,6 +2629,16 @@ def get_admin_dashboard():
                     "reviewed_at": str(r[10]) if r[10] else None
                 }
                 for r in return_request_rows
+            ],
+            "action_logs": [
+                {
+                    "id": r[0],
+                    "who": r[1],
+                    "action": r[2],
+                    "target": r[3],
+                    "created_at": str(r[4]) if r[4] else None
+                }
+                for r in action_log_rows
             ]
         }), 200
 

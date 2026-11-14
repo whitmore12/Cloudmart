@@ -42,6 +42,10 @@
       box-sizing: border-box;
     }
 
+    /* grey text until a real choice is picked */
+    .create-container select:required:invalid { color: #8a8576; }
+    .create-container option { color: #1d233e; }
+
     .btn-primary {
       width: 100%;
       padding: 10px;
@@ -92,14 +96,37 @@
     <input id="title" placeholder="Title" />
     <input id="price" placeholder="Price" type="number" step="0.01" />
 
-    <select id="category">
+    <select id="category" required onchange="updateSizeFields()">
+      <option value="" disabled selected>Category</option>
+      <option>Clothing</option>
+      <option>Shoes</option>
+      <option>Bags &amp; Accessories</option>
       <option>Electronics</option>
       <option>Books</option>
       <option>Furniture</option>
       <option>Appliances</option>
+      <option>Dorm &amp; Home</option>
+      <option>Beauty</option>
+      <option>Other</option>
     </select>
 
-    <select id="condition">
+    <!-- Edited by Makaila Williams 11/12/26 -->
+    <!-- Purpose: fit and size dropdowns, only shown for clothing and shoes -->
+    <div id="sizeFields" style="display: none;">
+      <select id="fit" required>
+        <option value="" disabled selected>Fit</option>
+        <option>Women's</option>
+        <option>Men's</option>
+        <option>Unisex</option>
+      </select>
+
+      <select id="size" required>
+        <option value="" disabled selected>Size</option>
+      </select>
+    </div>
+
+    <select id="condition" required>
+      <option value="" disabled selected>Condition</option>
       <option>New</option>
       <option>Used</option>
     </select>
@@ -123,6 +150,37 @@
       pageTitle.innerText = "Edit Listing";
       submitBtn.innerText = "Update";
       loadListingForEdit();
+    }
+
+    // Edited by Makaila Williams 11/12/26
+    // Purpose: the size choices for clothing and shoes
+    const CLOTHING_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+    const SHOE_SIZES = Array.from({ length: 15 }, (_, i) => "US " + (i + 1));
+
+    // shows fit and size for clothing and shoes, hides them for everything else
+    function updateSizeFields() {
+      const category = document.getElementById("category").value;
+      const box = document.getElementById("sizeFields");
+      const fitSelect = document.getElementById("fit");
+      const sizeSelect = document.getElementById("size");
+
+      let sizes = [];
+      if (category === "Clothing") sizes = CLOTHING_SIZES;
+      if (category === "Shoes") sizes = SHOE_SIZES;
+
+      if (sizes.length === 0) {
+        box.style.display = "none";
+        fitSelect.value = "";
+        sizeSelect.innerHTML = '<option value="" disabled selected>Size</option>';
+        return;
+      }
+
+      // rebuild the size list and keep the picked size if it is still there
+      const previous = sizeSelect.value;
+      sizeSelect.innerHTML = '<option value="" disabled selected>Size</option>' +
+        sizes.map(sz => `<option>${sz}</option>`).join("");
+      if (sizes.includes(previous)) sizeSelect.value = previous;
+      box.style.display = "block";
     }
 
     function signOut() {
@@ -158,8 +216,13 @@
 
         document.getElementById("title").value = listing.title || "";
         document.getElementById("price").value = listing.price ?? "";
-        document.getElementById("category").value = listing.category || "Electronics";
-        document.getElementById("condition").value = listing.condition || "Used";
+        document.getElementById("category").value = listing.category || "";
+        document.getElementById("condition").value = listing.condition || "";
+
+        // show the boxes first so the saved fit and size can be filled in
+        updateSizeFields();
+        if (listing.fit) document.getElementById("fit").value = listing.fit;
+        if (listing.size) document.getElementById("size").value = listing.size;
 
         window.currentImage = listing.image || "https://picsum.photos/300";
       } catch (err) {
@@ -187,6 +250,20 @@
         return;
       }
 
+      if (!category || !condition) {
+        alert("Please pick a category and a condition.");
+        return;
+      }
+
+      const needsSize = category === "Clothing" || category === "Shoes";
+      const fit = needsSize ? document.getElementById("fit").value : null;
+      const size = needsSize ? document.getElementById("size").value : null;
+
+      if (needsSize && (!fit || !size)) {
+        alert("Please pick a fit and a size.");
+        return;
+      }
+
       let imageUrl = window.currentImage || "https://picsum.photos/300";
 
       try {
@@ -200,6 +277,8 @@
           price: price,
           category: category,
           condition: condition,
+          fit: fit,
+          size: size,
           image: imageUrl
         };
 

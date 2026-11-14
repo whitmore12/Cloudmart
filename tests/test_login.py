@@ -5,7 +5,7 @@ import uuid
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from app import app, get_db_connection  # noqa: E402
+from application import app, get_db_connection  # noqa: E402
 
 
 @pytest.fixture
