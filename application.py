@@ -655,25 +655,38 @@ def generate_presigned_upload_url():
 
 @app.route("/api/uploads/message-presign", methods=["POST", "OPTIONS"])
 def generate_message_presigned_upload_url():
+    MAX_MESSAGE_IMAGE_BYTES = 8 * 1024 * 1024
+    ALLOWED_MESSAGE_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
     if request.method == "OPTIONS":
         return jsonify({"ok": True}), 200
 
     data = request.get_json() or {}
     file_name = data.get("fileName")
     file_type = data.get("fileType") or ""
-    if not file_name or not file_type.startswith("image/"):
+    file_size = data.get("fileSize")
+    extension = os.path.splitext(file_name or "")[1].lower()
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    if not file_name or file_type not in ALLOWED_MESSAGE_IMAGE_TYPES:
         return jsonify({"error": "An image file is required"}), 400
+    if extension not in allowed_extensions:
+        return jsonify({"error": "Unsupported image type"}), 400
+    try:
+        file_size = int(file_size)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Image size is required"}), 400
+    if file_size <= 0 or file_size > MAX_MESSAGE_IMAGE_BYTES:
+        return jsonify({"error": "Images must be 8 MB or smaller"}), 400
 
     try:
-        ext = os.path.splitext(file_name)[1] or ".jpg"
+        ext = extension or ".jpg"
         unique_name = f"messages/{uuid.uuid4()}{ext}"
         upload_url = s3.generate_presigned_url(
             "put_object",
-            Params={"Bucket": BUCKET_NAME, "Key": unique_name, "ContentType": file_type},
+            Params={"Bucket": BUCKET_NAME, "Key": unique_name, "ContentType": file_type, "ContentLength": file_size},
             ExpiresIn=300
         )
         image_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{unique_name}"
-        return jsonify({"uploadUrl": upload_url, "imageUrl": image_url}), 200
+        return jsonify({"uploadUrl": upload_url, "imageUrl": image_url, "maxBytes": MAX_MESSAGE_IMAGE_BYTES}), 200
     except Exception:
         app.logger.exception("Message image presign failed")
         return jsonify({"error": "Could not prepare message image upload"}), 500

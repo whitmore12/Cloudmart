@@ -35,7 +35,7 @@ async function uploadMessageImage(file) {
   if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
   if (file.size > 8 * 1024 * 1024) throw new Error("Images must be 8 MB or smaller.");
   const signed = await msgPost("/api/uploads/message-presign", "POST", {
-    fileName: file.name, fileType: file.type
+    fileName: file.name, fileType: file.type, fileSize: file.size
   });
   const upload = await fetch(signed.uploadUrl, {
     method: "PUT", headers: { "Content-Type": file.type }, body: file
