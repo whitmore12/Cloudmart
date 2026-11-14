@@ -1,17 +1,38 @@
-'''
-Name: Erick Constant
-Purpose: To create a wallet feature.
-'''
-
 from application import get_db_connection
+
+
+
+def check_if_user_exists(user_id):
+    '''
+    
+    Purpose: Checks if the user exists in the database.
+    Return True if the user exists, False otherwise.
+    Made by Erick Constant
+
+    '''
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT 1 FROM users WHERE id = %s", (user_id,))
+        return cur.fetchone() is not None
+    finally:
+        cur.close()
+        conn.close()
+
 
 
 def get_balance(user_id):
     '''
     Purpose: Return the balance of the user, or None if the user does not exist.
+    Edited by Vaughn Huey
     '''
     conn = get_db_connection()
     cur = conn.cursor()
+
+    if not check_if_user_exists(user_id):
+        return 0.0
+
+    
     try:
         cur.execute("SELECT pirate_dollars FROM users WHERE id = %s", (user_id,))
         row = cur.fetchone()
@@ -25,6 +46,7 @@ def check_for_sufficient_funds(user_id, value):
     '''
     Purpose: Check if the user has sufficient funds to make a purchase.
     Returns True for sufficient, False for insufficient funds.
+    Edited by Vaughn Huey
     '''
     current_balance = get_balance(user_id)
     return current_balance >= value
@@ -32,9 +54,15 @@ def check_for_sufficient_funds(user_id, value):
 def update_money(user_id, new_balance):
     '''
     Purpose: Update the money of the user in the database and commit.
+    Edited by Vaughn Huey
     '''
     conn = get_db_connection()
     cur = conn.cursor()
+
+    if not check_if_user_exists(user_id):
+        return 0.0
+
+
     try:
         cur.execute(
             "UPDATE users SET pirate_dollars = %s WHERE id = %s",
@@ -54,7 +82,10 @@ def transfer_money(buyer_id, seller_id, cost):
     '''
     Purpose: Transfers the money from one user to another and updates it.
     Returns 0 for complete, returns 1 for incomplete (insufficient funds).
+    Edited by Vaughn Huey
     '''
+    
+    
     if not check_for_sufficient_funds(buyer_id, cost):
         return 1
 
@@ -72,6 +103,7 @@ def transfer_money(buyer_id, seller_id, cost):
 def get_transaction_history(user_id, limit=50, offset=0):
     '''
     Purpose: Get transaction history for a user.
+    Created by Vaughn Huey
     '''
     conn = get_db_connection()
     cur = conn.cursor()
