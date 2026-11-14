@@ -1427,6 +1427,10 @@ async function confirmPurchaseWithPin(listingId) {
 }
 
   
+function togglePin(listingId) {
+  const pinDisplay = document.getElementById(`pinDisplay${listingId}`);
+  const toggleBtn = document.getElementById(`pinToggleBtn${listingId}`);
+
   if (pinDisplay.textContent === "****") {
     fetch(`${API}/api/listings/${listingId}/get-pin?user_id=${loggedInUser.id}&role=${loggedInUser.role}`)
       .then(res => res.json())
