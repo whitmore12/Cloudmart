@@ -40,6 +40,21 @@ def homepage():
     return send_from_directory("Frontend", "index.html")
 
 
+@app.get("/api/health")
+def health_check():
+    """Health check endpoint for Elastic Beanstalk load balancer."""
+    try:
+        # Test database connection
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        conn.close()
+        return jsonify({"status": "healthy", "database": "connected"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 503
+
+
 @app.get("/Resources/<path:filename>")
 def resource_file(filename):
     return send_from_directory("Resources", filename)
@@ -2663,6 +2678,13 @@ def get_admin_dashboard():
         conn.close()
 
 
+# Initialize database on startup (runs under both gunicorn and direct execution)
+with app.app_context():
+    try:
+        init_db()
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"Database initialization warning: {e}")
+
 if __name__ == "__main__":
-    init_db()
     app.run(port=5001, debug=True)

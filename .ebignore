@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.venv/
+
+# Virtual environments
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Test
+tests/
+*.log
+
+# Local config
+.env
+*.pem
+
+# Documentation
+*.md
+*.docx
+Change_logs/
+backend/notes.md
+
+# Docker
+docker-compose.yml
+
+# Build artifacts
+backend.zip
+
+# Local development
+Resources/ec2Test.pem
+Resources/cloudpair.pem
+
+# Vercel
+vercel.json

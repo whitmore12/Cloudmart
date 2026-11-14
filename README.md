@@ -126,11 +126,13 @@ The `Deploy to Elastic Beanstalk` workflow deploys pushes to `main` using AWS
 OIDC, so no long-lived AWS access keys are stored in GitHub. Add a repository
 Actions variable named `AWS_DEPLOY_ROLE_ARN` containing the IAM role ARN.
 
-The role's trust policy should allow the `token.actions.githubusercontent.com`
-provider with audience `sts.amazonaws.com`, and restrict the subject to
-`repo:kwam12/Cloudmart:ref:refs/heads/main`. The role also needs permission to
-upload the application version and deploy it to the `Ecamp` application and
-`cloudmart-env` environment in `us-east-1`.
+To create/update the IAM OIDC provider and deployment role, run
+`bash scripts/setup-github-oidc-role.sh` using AWS CLI credentials for the
+account containing the Elastic Beanstalk environment. The script restricts
+role assumption to `kwam12/Cloudmart`'s `main` branch and prints the ARN to
+save as the `AWS_DEPLOY_ROLE_ARN` repository Actions variable. It attaches
+`AWSElasticBeanstalkFullAccess` as a starting policy; review and reduce those
+permissions to match your account's deployment needs.
 
 ## Quick Start Checklist
 
