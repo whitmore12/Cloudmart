@@ -1482,6 +1482,9 @@ def update_user_profile(user_id):
     if not new_username:
         return jsonify({"error": "Username is required"}), 400
 
+    if contains_profanity(new_username):
+        return jsonify({"error": "Username contains inappropriate language."}), 400
+
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -2064,6 +2067,9 @@ def send_message():
 
     if len(body) > MAX_MESSAGE_LENGTH:
         return jsonify({"error": f"Message must be {MAX_MESSAGE_LENGTH} characters or fewer"}), 400
+
+    if contains_profanity(body):
+        return jsonify({"error": "Message contains inappropriate language."}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
