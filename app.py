@@ -6,7 +6,7 @@ import bcrypt
 import secrets
 import hashlib
 from datetime import datetime, timedelta
-from email_config import send_reset_email, APP_BASE_URL
+from email_config import send_reset_email, send_username_email, APP_BASE_URL
 import os
 import uuid
 import subprocess
@@ -372,7 +372,7 @@ def forgot_password():
             user_id = row[0]
             token = secrets.token_urlsafe(32)
             token_hash = hashlib.sha256(token.encode()).hexdigest()
-            expires_at = datetime.utcnow() + timedelta(minutes=30)
+            expires_at = datetime.utcnow() + timedelta(minutes=15)
             cur.execute(
                 "INSERT INTO password_resets (user_id, token_hash, expires_at) "
                 "VALUES (%s, %s, %s)",
@@ -423,6 +423,31 @@ def reset_password():
         conn.close()
 
     return jsonify({"message": "Password updated"}), 200
+
+@app.route("/api/auth/forgot-username", methods=["POST"])
+def forgot_username():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+
+    if not email:
+        return jsonify({"error": "Hamptonu email is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT username FROM users WHERE LOWER(email) = %s", (email,))
+        rows = cur.fetchall()
+        if rows:
+            usernames = [row[0] for row in rows]
+            try:
+                send_username_email(email, usernames)
+            except Exception as e:
+                app.logger.error(f"Email send failed: {e}")
+    finally:
+        cur.close()
+        conn.close()
+    # recieves generic message regardless if an account exists
+    return jsonify({"message": "If that email is registered, we sent your username to it."}), 200
 
 @app.route("/api/uploads/presign", methods=["POST", "OPTIONS"])
 def generate_presigned_upload_url():
