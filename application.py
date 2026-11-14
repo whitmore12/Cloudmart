@@ -27,35 +27,37 @@ load_dotenv()
 from s3_config import s3, BUCKET_NAME, AWS_REGION
 from account_requests import initAccountRequests
 
-application = Flask(__name__)
-CORS(application)
+app = Flask(__name__)
+# Explicit WSGI alias for Vercel's Python entrypoint detector.
+handler = app
+CORS(app)
 
 
-@application.get("/")
+@app.get("/")
 def homepage():
     return send_from_directory("Frontend", "index.html")
 
 
-@application.get("/Resources/<path:filename>")
+@app.get("/Resources/<path:filename>")
 def resource_file(filename):
     return send_from_directory("Resources", filename)
 
 
-@application.get("/<path:filename>")
+@app.get("/<path:filename>")
 def frontend_file(filename):
     return send_from_directory("Frontend", filename)
 
 # Database & Tunnel Configuration
-application.config['SSH_HOST'] = os.environ.get("SSH_HOST")
-application.config['SSH_USER'] = os.environ.get("SSH_USER")
-application.config['SSH_KEY_PATH'] = os.environ.get("SSH_KEY_PATH")
+app.config['SSH_HOST'] = os.environ.get("SSH_HOST")
+app.config['SSH_USER'] = os.environ.get("SSH_USER")
+app.config['SSH_KEY_PATH'] = os.environ.get("SSH_KEY_PATH")
 # RDS Configuration
-application.config['RDS_HOST'] = os.environ.get("RDS_HOST")
+app.config['RDS_HOST'] = os.environ.get("RDS_HOST")
 RDS_PORT = int(os.environ.get("RDS_PORT", "5432"))
-application.config['DB_HOST'] = os.environ.get("DB_HOST")
-application.config['DB_NAME'] = os.environ.get("DB_NAME")
-application.config['DB_USER'] = os.environ.get("DB_USER")
-application.config['DB_PASSWORD'] = os.environ.get("DB_PASSWORD")
+app.config['DB_HOST'] = os.environ.get("DB_HOST")
+app.config['DB_NAME'] = os.environ.get("DB_NAME")
+app.config['DB_USER'] = os.environ.get("DB_USER")
+app.config['DB_PASSWORD'] = os.environ.get("DB_PASSWORD")
 
 # Database & Tunnel Configuration
 SSH_HOST = os.environ.get("SSH_HOST")
@@ -71,7 +73,6 @@ DB_PASSWORD = os.environ.get("DB_PASSWORD") or os.environ.get("RDS_PASSWORD")
 
 # Use SSH tunnel for local development, direct connection for EB
 USE_SSH_TUNNEL = os.environ.get("USE_SSH_TUNNEL", "true").lower() == "true"
-
 
 tunnel = None
 _db_initialized = False
@@ -92,69 +93,81 @@ def start_ssh_tunnel():
     return tunnel
 
 
+def _connect_db():
+    if USE_SSH_TUNNEL:
+        if not SSH_HOST:
+            raise RuntimeError("SSH_HOST is required when USE_SSH_TUNNEL=true")
+        if not RDS_HOST:
+            raise RuntimeError("RDS_HOST or RDS_HOSTNAME is required when USE_SSH_TUNNEL=true")
+        tun = start_ssh_tunnel()
+        db_host = "127.0.0.1"
+        db_port = tun.local_bind_port
+    else:
+        db_host = DB_HOST or RDS_HOST or os.environ.get("RDS_HOSTNAME")
+        if not db_host:
+            raise RuntimeError("DB_HOST or RDS_HOSTNAME is required when USE_SSH_TUNNEL=false")
+        db_port = RDS_PORT
+
+    return psycopg.connect(
+        host=db_host,
+        port=db_port,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD,
+    )
+
+
 def get_db_connection():
     global _db_initialized, _force_reinit
-    if USE_SSH_TUNNEL:
-        # Local development: use SSH tunnel
-        tun = start_ssh_tunnel()
-        conn = psycopg.connect(
-            host="127.0.0.1",
-            port=tun.local_bind_port,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
-    else:
-        # Production (EB): direct connection to RDS
-        conn = psycopg.connect(
-            host=DB_HOST,
-            port=RDS_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
-    
-    # Auto-initialize database on first connection if tables don't exist
+    conn = _connect_db()
+
     if not _db_initialized or _force_reinit:
         try:
             cur = conn.cursor()
             cur.execute("SELECT 1 FROM users LIMIT 1")
-            # Also check for pirate_dollars column
             cur.execute("SELECT pirate_dollars FROM users LIMIT 1")
             cur.close()
             _db_initialized = True
             _force_reinit = False
         except Exception:
-            # Tables don't exist or schema incomplete, initialize them using a separate connection
-            # to avoid transaction issues
             conn.close()
             try:
                 init_db()
                 _db_initialized = True
                 _force_reinit = False
-                print("Database initialized on first connection")
             except Exception as e:
                 print(f"Auto-init failed: {e}")
-            # Return a new connection
-            if USE_SSH_TUNNEL:
-                tun = start_ssh_tunnel()
-                return psycopg.connect(
-                    host="127.0.0.1",
-                    port=tun.local_bind_port,
-                    dbname=DB_NAME,
-                    user=DB_USER,
-                    password=DB_PASSWORD
-                )
-            else:
-                return psycopg.connect(
-                    host=DB_HOST,
-                    port=RDS_PORT,
-                    dbname=DB_NAME,
-                    user=DB_USER,
-                    password=DB_PASSWORD
-                )
-    
+            return _connect_db()
+
     return conn
+
+
+def log_action(who, action, target):
+    """Logs an action to the action_logs database table."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO action_logs (who, action, target)
+            VALUES (%s, %s, %s)
+        """, (str(who), str(action), str(target)))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f"Failed to record action log: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+# Account deletion requests (Makaila)
+def remove_profile_image(image_url):
+    prefix = "/api/profile-images/"
+    if image_url and image_url.startswith(prefix + "profiles/"):
+        s3.delete_object(Bucket=BUCKET_NAME, Key=image_url[len(prefix):])
+
+
+# the lambda looks get_db_connection up each time so tests can swap it
+initAccountRequests(app, lambda: get_db_connection(), remove_profile_image, log_action)
 
 
 def init_db():
@@ -337,7 +350,7 @@ def init_db():
 # ========================
 # AUTH
 # ========================
-@application.route("/api/auth/register", methods=["POST"])
+@app.route("/api/auth/register", methods=["POST"])
 def register():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
@@ -374,7 +387,7 @@ def register():
         conn.close()
 
 
-@application.get("/api/auth/admin-setup-status")
+@app.get("/api/auth/admin-setup-status")
 def admin_setup_status():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -387,7 +400,7 @@ def admin_setup_status():
         conn.close()
 
 
-@application.post("/api/auth/create-admin")
+@app.post("/api/auth/create-admin")
 def create_admin():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
@@ -439,7 +452,7 @@ def create_admin():
         conn.rollback()
         if getattr(e, "sqlstate", None) == "23505":
             return jsonify({"error": "That email or username is already in use."}), 409
-        application.logger.exception("Admin account creation failed")
+        app.logger.exception("Admin account creation failed")
         return jsonify({"error": "Could not create the admin account."}), 500
     finally:
         cur.close()
@@ -454,7 +467,7 @@ MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATIONS = [60, 300, 600, 900]  # 1m, 5m, 10m, 15m
 
 
-@application.route("/api/auth/login", methods=["POST"])
+@app.route("/api/auth/login", methods=["POST"])
 def login():
     data = request.get_json()
     username = data.get("username") or ""
@@ -504,7 +517,78 @@ def login():
 # S3 UPLOADS - Nick
 # ========================
 
-@application.route("/api/uploads/presign", methods=["POST", "OPTIONS"])
+
+@app.route("/api/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    generic = {"message": "If that email is registered, a reset link has been sent."}
+
+    if not email:
+        return jsonify(generic), 200
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM users WHERE LOWER(email) = %s", (email,))
+        row = cur.fetchone()
+        if row:
+            user_id = row[0]
+            token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            expires_at = datetime.utcnow() + timedelta(minutes=30)
+            cur.execute(
+                "INSERT INTO password_resets (user_id, token_hash, expires_at) "
+                "VALUES (%s, %s, %s)",
+                (user_id, token_hash, expires_at),
+            )
+            conn.commit()
+            link = f"{APP_BASE_URL}/reset-password.html?token={token}"
+            try:
+                send_reset_email(email, link)
+            except Exception as e:
+                app.logger.error(f"Email send failed: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+    return jsonify(generic), 200
+
+
+@app.route("/api/auth/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json() or {}
+    token = data.get("token") or ""
+    new_password = data.get("password") or ""
+
+    if not token or len(new_password) < 8:
+        return jsonify({"error": "Invalid request"}), 400
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT id, user_id, expires_at, used FROM password_resets "
+            "WHERE token_hash = %s FOR UPDATE",
+            (token_hash,),
+        )
+        row = cur.fetchone()
+        if not row or row[3] or row[2] < datetime.utcnow():
+            return jsonify({"error": "Link is invalid or expired"}), 400
+
+        reset_id, user_id = row[0], row[1]
+        password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+        cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (password_hash, user_id))
+        cur.execute("UPDATE password_resets SET used = TRUE WHERE id = %s", (reset_id,))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    return jsonify({"message": "Password updated"}), 200
+
+@app.route("/api/uploads/presign", methods=["POST", "OPTIONS"])
 def generate_presigned_upload_url():
     if request.method == "OPTIONS":
         return jsonify({"ok": True}), 200
@@ -540,7 +624,7 @@ def generate_presigned_upload_url():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@application.route("/api/uploads/message-presign", methods=["POST", "OPTIONS"])
+@app.route("/api/uploads/message-presign", methods=["POST", "OPTIONS"])
 def generate_message_presigned_upload_url():
     if request.method == "OPTIONS":
         return jsonify({"ok": True}), 200
@@ -562,11 +646,11 @@ def generate_message_presigned_upload_url():
         image_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{unique_name}"
         return jsonify({"uploadUrl": upload_url, "imageUrl": image_url}), 200
     except Exception:
-        application.logger.exception("Message image presign failed")
+        app.logger.exception("Message image presign failed")
         return jsonify({"error": "Could not prepare message image upload"}), 500
 
 #Nickodemus
-@application.route("/api/uploads/profile-presign", methods=["POST", "OPTIONS"])
+@app.route("/api/uploads/profile-presign", methods=["POST", "OPTIONS"])
 def generate_profile_presigned_upload_url():
     if request.method == "OPTIONS":
         return jsonify({"ok": True}), 200
@@ -603,7 +687,7 @@ def generate_profile_presigned_upload_url():
         return jsonify({"error": str(e)}), 500
 
 
-@application.post("/api/uploads/profile")
+@app.post("/api/uploads/profile")
 def upload_profile_image():
     image = request.files.get("file")
     if not image or not image.filename:
@@ -627,11 +711,11 @@ def upload_profile_image():
         )
         return jsonify({"imageUrl": f"/api/profile-images/{key}"}), 200
     except Exception as e:
-        application.logger.exception("Profile image upload failed")
+        app.logger.exception("Profile image upload failed")
         return jsonify({"error": "Could not upload profile image to S3."}), 500
 
 
-@application.get("/api/profile-images/<path:key>")
+@app.get("/api/profile-images/<path:key>")
 def serve_profile_image(key):
     if not key.startswith("profiles/"):
         return jsonify({"error": "Image not found."}), 404
@@ -640,14 +724,14 @@ def serve_profile_image(key):
         obj = s3.get_object(Bucket=BUCKET_NAME, Key=key)
         return Response(
             obj["Body"].read(),
-            mimetype=obj.get("ContentType", "applicationlication/octet-stream"),
+            mimetype=obj.get("ContentType", "application/octet-stream"),
             headers={"Cache-Control": "public, max-age=3600"},
         )
     except Exception:
         return jsonify({"error": "Image not found."}), 404
 
 
-@application.post("/api/uploads/listing")
+@app.post("/api/uploads/listing")
 def upload_listing_image():
     image = request.files.get("file")
     if not image or not image.filename:
@@ -663,11 +747,11 @@ def upload_listing_image():
         s3.put_object(Bucket=BUCKET_NAME, Key=key, Body=image.stream, ContentType=content_type)
         return jsonify({"imageUrl": f"/api/listing-images/{key}"}), 200
     except Exception:
-        application.logger.exception("Listing image upload failed")
+        app.logger.exception("Listing image upload failed")
         return jsonify({"error": "Could not upload listing image."}), 500
 
 
-@application.get("/api/listing-images/<path:key>")
+@app.get("/api/listing-images/<path:key>")
 def serve_listing_image(key):
     if not key.startswith("listings/"):
         return jsonify({"error": "Image not found."}), 404
@@ -686,7 +770,47 @@ def serve_listing_image(key):
 # ========================
 # LISTINGS
 # ========================
-@application.route("/api/listings", methods=["POST"])
+
+# Edited by Makaila Williams 11/12/26
+# Purpose: make sure the category, condition, size and fit are real choices
+# the dropdowns on the sell page can be changed in the browser, so the server checks them too
+ALLOWED_CATEGORIES = [
+    "Clothing", "Shoes", "Bags & Accessories", "Electronics", "Books",
+    "Furniture", "Appliances", "Dorm & Home", "Beauty", "Other",
+]
+ALLOWED_CONDITIONS = ["New", "Used"]
+ALLOWED_FITS = ["Women's", "Men's", "Unisex"]
+SIZES_BY_CATEGORY = {
+    "Clothing": ["XS", "S", "M", "L", "XL", "XXL"],
+    "Shoes": ["US " + str(n) for n in range(1, 16)],
+}
+
+
+def check_listing_fields(data):
+    # gives back an error message, or None if it is all good
+    category = data.get("category")
+    if category not in ALLOWED_CATEGORIES:
+        return "Please pick a valid category."
+    if data.get("condition") not in ALLOWED_CONDITIONS:
+        return "Please pick a valid condition."
+
+    # only clothing and shoes need a size and fit
+    if category in SIZES_BY_CATEGORY:
+        if data.get("fit") not in ALLOWED_FITS:
+            return "Please pick a fit."
+        if data.get("size") not in SIZES_BY_CATEGORY[category]:
+            return "Please pick a valid size."
+    return None
+
+
+def size_and_fit(data):
+    # every other category gets no size or fit saved
+    if data.get("category") in SIZES_BY_CATEGORY:
+        return data.get("size"), data.get("fit")
+    return None, None
+
+
+@app.route("/api/listings", methods=["POST"])
 def create_listing():
     data = request.get_json()
     image = data.get("image") or "https://picsum.photos/300"
@@ -736,7 +860,7 @@ def create_listing():
         conn.close()
 
 #Tyson
-@application.route("/api/listings", methods=["GET"])
+@app.route("/api/listings", methods=["GET"])
 def get_listings():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -781,7 +905,7 @@ def get_listings():
     } for r in rows]), 200
 
 
-@application.route("/api/listings/<int:listing_id>", methods=["GET"])
+@app.route("/api/listings/<int:listing_id>", methods=["GET"])
 def get_listing_by_id(listing_id):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -828,7 +952,7 @@ def get_listing_by_id(listing_id):
     }), 200
 
 
-@application.route("/api/listings/<int:listing_id>", methods=["PUT"])
+@app.route("/api/listings/<int:listing_id>", methods=["PUT"])
 def update_listing(listing_id):
     data = request.get_json()
     user_id = data.get("user_id")
@@ -884,14 +1008,14 @@ def update_listing(listing_id):
 #Tyson
 
 # Edited By Taj Brown
-@application.route("/api/listings/<int:listing_id>/mark-sold", methods=["PUT"])
+@app.route("/api/listings/<int:listing_id>/mark-sold", methods=["PUT"])
 def mark_listing_sold(listing_id):
     data = request.get_json()
  # ========================
  # PURCHASE FLOW: Buyer initiates -> Seller confirms with PIN
  # ========================
 
-@application.route("/api/listings/<int:listing_id>/initiate-purchase", methods=["POST"])
+@app.route("/api/listings/<int:listing_id>/initiate-purchase", methods=["POST"])
 def initiate_purchase(listing_id):
     """Buyer initiates purchase. Generates PIN, sets status to 'pending', holds funds."""
     data = request.get_json() or {}
@@ -974,7 +1098,7 @@ def initiate_purchase(listing_id):
         conn.close()
 
 
-@application.route("/api/listings/<int:listing_id>/confirm-purchase", methods=["POST"])
+@app.route("/api/listings/<int:listing_id>/confirm-purchase", methods=["POST"])
 def confirm_purchase(listing_id):
     """Seller confirms purchase with PIN. Transfers funds, marks as sold."""
     data = request.get_json() or {}
@@ -1091,7 +1215,7 @@ def confirm_purchase(listing_id):
         conn.close()
 
 
-@application.route("/api/listings/<int:listing_id>/get-pin", methods=["GET"])
+@app.route("/api/listings/<int:listing_id>/get-pin", methods=["GET"])
 def get_pin(listing_id):
     user_id = request.args.get("user_id", type=int)
     user_role = request.args.get("role")
@@ -1153,7 +1277,7 @@ def get_pin(listing_id):
         conn.close()
 
 
-@application.route("/api/listings/<int:listing_id>/admin-bypass-pin", methods=["POST"])
+@app.route("/api/listings/<int:listing_id>/admin-bypass-pin", methods=["POST"])
 def admin_bypass_pin(listing_id):
     data = request.get_json() or {}
     user_id = data.get("user_id")
@@ -1218,7 +1342,7 @@ def admin_bypass_pin(listing_id):
         conn.close()
 
 
-@application.route("/api/listings/<int:listing_id>/mark-active", methods=["PUT"])
+@app.route("/api/listings/<int:listing_id>/mark-active", methods=["PUT"])
 def mark_listing_active(listing_id):
     data = request.get_json()
     user_id = data.get("user_id")
@@ -1261,7 +1385,7 @@ def mark_listing_active(listing_id):
         conn.close()
 
 #Ayinde
-@application.route("/api/listings/<int:listing_id>", methods=["DELETE"])
+@app.route("/api/listings/<int:listing_id>", methods=["DELETE"])
 def delete_listing(listing_id):
     data = request.get_json() or {}
     user_id = data.get("user_id")
@@ -1310,7 +1434,7 @@ def delete_listing(listing_id):
 # ========================
 # USERS / PROFILE SUPPORT
 # ========================
-@application.route("/api/users/by-username/<username>", methods=["GET"])
+@app.route("/api/users/by-username/<username>", methods=["GET"])
 def get_user_by_username(username):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1337,7 +1461,7 @@ def get_user_by_username(username):
     }), 200
 
 
-@application.route("/api/users/<int:user_id>/profile", methods=["PUT"])
+@app.route("/api/users/<int:user_id>/profile", methods=["PUT"])
 def update_user_profile(user_id):
     data = request.get_json() or {}
     requester_id = data.get("user_id")
@@ -1405,7 +1529,7 @@ def update_user_profile(user_id):
         conn.close()
 
 
-@application.route("/api/listings/by-seller/<username>", methods=["GET"])
+@app.route("/api/listings/by-seller/<username>", methods=["GET"])
 def get_listings_by_seller(username):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1446,7 +1570,7 @@ def get_listings_by_seller(username):
     } for r in rows]), 200
 
 #Nickodemus
-@application.route("/api/listings/bought/<path:buyer_email>", methods=["GET"])
+@app.route("/api/listings/bought/<path:buyer_email>", methods=["GET"])
 def get_bought_items(buyer_email):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1514,7 +1638,133 @@ def get_bought_items(buyer_email):
     } for r in rows]), 200
 
 
-@application.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
+@app.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
+@app.route("/api/listings/pending/<path:buyer_email>", methods=["GET"])
+def get_pending_purchases(buyer_email):
+    """Get all pending purchases for a buyer (listings where buyer initiated but seller hasn't confirmed)"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            l.id,
+            l.user_id,
+            l.title,
+            l.price,
+            l.category,
+            l.condition,
+            l.image,
+            COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+            COALESCE(l.status, 'active') AS status,
+            l.buyer_email,
+            l.verification_pin,
+            l.pin_expires_at,
+            l.pin_verified_by_seller,
+            l.pin_verified_at
+        FROM listings l
+        LEFT JOIN users u ON l.user_id = u.id
+        WHERE LOWER(COALESCE(l.buyer_email, '')) = LOWER(%s)
+           AND COALESCE(l.status, 'active') = 'pending'
+        ORDER BY l.id DESC
+    """, (buyer_email,))
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return jsonify([{
+        "id": r[0],
+        "user_id": r[1],
+        "title": r[2],
+        "price": float(r[3]) if r[3] is not None else 0,
+        "category": r[4],
+        "condition": r[5],
+        "image": r[6],
+        "seller": r[7],
+        "status": r[8],
+        "buyer_email": r[9],
+        "verification_pin": r[10],
+        "pin_expires_at": r[11].isoformat() if r[11] else None,
+        "pin_verified_by_seller": r[12],
+        "pin_verified_at": r[13].isoformat() if r[13] else None
+    } for r in rows]), 200
+
+
+@app.route("/api/listings/pending", methods=["GET"])
+def get_pending_listings():
+    """Get pending listings for current user - works for both buyers and sellers"""
+    user_id = request.args.get("user_id", type=int)
+    user_role = request.args.get("role")
+    
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        if user_role == "admin":
+            # Admin sees all pending
+            cur.execute("""
+                SELECT
+                    l.id, l.user_id, l.title, l.price, l.category, l.condition,
+                    l.image, COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+                    COALESCE(l.status, 'active') AS status, l.buyer_email,
+                    l.verification_pin, l.pin_expires_at,
+                    l.pin_verified_by_seller, l.pin_verified_at
+                FROM listings l
+                LEFT JOIN users u ON l.user_id = u.id
+                WHERE COALESCE(l.status, 'active') = 'pending'
+                ORDER BY l.id DESC
+            """)
+        else:
+            # Check if user is buyer or seller for each pending listing
+            cur.execute("""
+                SELECT
+                    l.id, l.user_id, l.title, l.price, l.category, l.condition,
+                    l.image, COALESCE(NULLIF(l.seller, ''), u.username) AS seller,
+                    COALESCE(l.status, 'active') AS status, l.buyer_email,
+                    l.verification_pin, l.pin_expires_at,
+                    l.pin_verified_by_seller, l.pin_verified_at
+                FROM listings l
+                LEFT JOIN users u ON l.user_id = u.id
+                WHERE COALESCE(l.status, 'active') = 'pending'
+                  AND (
+                      (l.user_id = %s)  -- seller's own pending listings
+                      OR (LOWER(COALESCE(l.buyer_email, '')) = (
+                          SELECT LOWER(email) FROM users WHERE id = %s
+                      ))  -- buyer's pending purchases
+                  )
+                ORDER BY l.id DESC
+            """, (user_id, user_id))
+
+        rows = cur.fetchall()
+        
+        return jsonify([{
+            "id": r[0],
+            "user_id": r[1],
+            "title": r[2],
+            "price": float(r[3]) if r[3] is not None else 0,
+            "category": r[4],
+            "condition": r[5],
+            "image": r[6],
+            "seller": r[7],
+            "status": r[8],
+            "buyer_email": r[9],
+            "verification_pin": r[10],
+            "pin_expires_at": r[11].isoformat() if r[11] else None,
+            "pin_verified_by_seller": r[12],
+            "pin_verified_at": r[13].isoformat() if r[13] else None
+        } for r in rows]), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route("/api/returns/buyer/<path:buyer_email>", methods=["GET"])
 def get_return_requests_for_buyer(buyer_email):
     """Get all return requests made by a buyer (for return history)"""
     conn = get_db_connection()
@@ -1568,7 +1818,7 @@ def get_return_requests_for_buyer(buyer_email):
 # ========================
 # RETURNS
 # ========================
-@application.route("/api/returns/request", methods=["POST"])
+@app.route("/api/returns/request", methods=["POST"])
 def create_return_request():
     data = request.get_json() or {}
     listing_id = data.get("listing_id")
@@ -1652,7 +1902,7 @@ def create_return_request():
         conn.close()
 
 #Nickodemus
-@application.route("/api/returns/seller/<int:seller_id>", methods=["GET"])
+@app.route("/api/returns/seller/<int:seller_id>", methods=["GET"])
 def get_return_requests_for_seller(seller_id):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -1704,7 +1954,7 @@ def get_return_requests_for_seller(seller_id):
     } for r in rows]), 200
 
 
-@application.route("/api/returns/<int:return_id>/review", methods=["PUT"])
+@app.route("/api/returns/<int:return_id>/review", methods=["PUT"])
 def review_return_request(return_id):
     data = request.get_json() or {}
     seller_id = data.get("seller_id")
@@ -1783,7 +2033,7 @@ MAX_MESSAGE_LENGTH = 2000
 
 
 # 1) Send a message about an item
-@application.route("/api/messages", methods=["POST"])
+@app.route("/api/messages", methods=["POST"])
 def send_message():
     data = request.get_json() or {}
     sender_id = data.get("sender_id")
@@ -1859,7 +2109,7 @@ def send_message():
 
 
 # 2) List my chats (one per item + other person, newest first)
-@application.route("/api/messages/chats", methods=["GET"])
+@app.route("/api/messages/chats", methods=["GET"])
 def list_my_chats():
     user_id = request.args.get("user_id", type=int)
 
@@ -1928,7 +2178,7 @@ def list_my_chats():
 
 
 # 3) Open one chat (all messages for one item between me and one other person)
-@application.route("/api/messages/chat", methods=["GET"])
+@app.route("/api/messages/chat", methods=["GET"])
 def get_chat():
     user_id = request.args.get("user_id", type=int)
     other_user_id = request.args.get("other_user_id", type=int)
@@ -1995,7 +2245,7 @@ def get_chat():
 
 
 # 4) Mark a chat as read (only messages sent TO me)
-@application.route("/api/messages/read", methods=["PUT"])
+@app.route("/api/messages/read", methods=["PUT"])
 def mark_chat_read():
     data = request.get_json() or {}
     user_id = data.get("user_id")
@@ -2036,7 +2286,7 @@ def mark_chat_read():
 
 # WISHLIST
 # ========================
-@application.route("/api/wishlist", methods=["GET"])
+@app.route("/api/wishlist", methods=["GET"])
 def get_wishlist():
     user_id = request.args.get("user_id")
 
@@ -2077,7 +2327,7 @@ def get_wishlist():
     } for r in rows]), 200
 
 
-@application.route("/api/wishlist", methods=["POST"])
+@app.route("/api/wishlist", methods=["POST"])
 def add_to_wishlist():
     data = request.get_json()
     user_id = data.get("user_id")
@@ -2112,7 +2362,7 @@ def add_to_wishlist():
         conn.close()
 
 
-@application.route("/api/wishlist/<int:listing_id>", methods=["DELETE"])
+@app.route("/api/wishlist/<int:listing_id>", methods=["DELETE"])
 def remove_from_wishlist(listing_id):
     user_id = request.args.get("user_id")
 
@@ -2134,7 +2384,7 @@ def remove_from_wishlist(listing_id):
 # ========================
 # WALLET
 # ========================
-@application.route("/api/wallet/balance", methods=["GET"])
+@app.route("/api/wallet/balance", methods=["GET"])
 def get_wallet_balance():
     user_id = request.args.get("user_id", type=int)
     if not user_id:
@@ -2145,7 +2395,7 @@ def get_wallet_balance():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@application.route("/api/wallet/history", methods=["GET"])
+@app.route("/api/wallet/history", methods=["GET"])
 def get_wallet_history():
     user_id = request.args.get("user_id", type=int)
     if not user_id:
@@ -2156,7 +2406,7 @@ def get_wallet_history():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@application.route("/api/wallet/transfer", methods=["POST"])
+@app.route("/api/wallet/transfer", methods=["POST"])
 def wallet_transfer():
     data = request.get_json() or {}
     try:
@@ -2176,7 +2426,7 @@ def wallet_transfer():
 # ========================
 # ADMIN
 # ========================
-@application.route("/api/admin/dashboard", methods=["GET"])
+@app.route("/api/admin/dashboard", methods=["GET"])
 def get_admin_dashboard():
     role = request.args.get("role")
 
@@ -2323,4 +2573,4 @@ def get_admin_dashboard():
 
 if __name__ == "__main__":
     init_db()
-    application.run(port=5001, debug=True)
+    app.run(port=5001, debug=True)
