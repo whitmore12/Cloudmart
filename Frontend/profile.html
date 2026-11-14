@@ -1223,119 +1223,16 @@ async function loadProfile() {
   }
 }
 
-async function initiatePurchase(listingId) {
-  if (!loggedInUser) {
-    alert("Please sign in first.");
-    return;
-  }
+// Emuesiri Imarah - Duplicate Purchase Prevention
 
-  if (!confirm("Initiate purchase for this listing? You will receive a PIN to share with the seller.")) return;
+const pendingPurchaseActions = new Set();
+const completedPurchaseActions = new Set();
 
-  try {
-    const res = await fetch(`${API}/api/listings/${listingId}/initiate-purchase`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: loggedInUser.id,
-        role: loggedInUser.role
-      })
-    });
 
-    const data = await res.json();
 
-    if (!res.ok) {
-      alert(data.error || "Failed to initiate purchase.");
-      return;
-    }
+function togglePin(listingId) {
 
-    alert("Purchase initiated!\nYour verification PIN: " + data.verification_pin + "\nShare this PIN with the seller to complete the purchase.");
-    loadProfile();
-  } catch (err) {
-    console.error(err);
-    alert("Error connecting to server.");
-  }
 }
-
-async function confirmPurchase(listingId) {
-  if (!loggedInUser) {
-    alert("Please sign in first.");
-    return;
-  }
-
-  showPrompt("Enter the 4-digit PIN from the buyer:", async (pin) => {
-    if (!pin || !pin.trim() || pin.trim().length !== 4 || !/^\d{4}$/.test(pin.trim())) {
-      alert("Please enter a valid 4-digit PIN.");
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API}/api/listings/${listingId}/confirm-purchase`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: loggedInUser.id,
-          role: loggedInUser.role,
-          pin: pin.trim()
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "Failed to confirm purchase.");
-        return;
-      }
-
-      alert("Purchase confirmed! Listing marked as sold.");
-      loadProfile();
-    } catch (err) {
-      console.error(err);
-      alert("Error connecting to server.");
-    }
-  });
-}
-async function confirmPurchaseWithPin(listingId) {
-  if (!loggedInUser) {
-    alert("Please sign in first.");
-    return;
-  }
-
-  const pinInput = document.getElementById(`pinInput${listingId}`);
-  const pin = pinInput ? pinInput.value.trim() : "";
-
-  if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-    alert("Please enter a valid 4-digit PIN.");
-    if (pinInput) pinInput.focus();
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API}/api/listings/${listingId}/confirm-purchase`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: loggedInUser.id,
-        role: loggedInUser.role,
-        pin: pin
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Failed to confirm purchase.");
-      if (pinInput) pinInput.focus();
-      return;
-    }
-
-    alert("Purchase confirmed! Listing marked as sold.");
-    loadProfile();
-  } catch (err) {
-    console.error(err);
-    alert("Error connecting to server.");
-  }
-}
-
 
 function togglePin(listingId) {
   const pinDisplay = document.getElementById(`pinDisplay${listingId}`);
@@ -1446,9 +1343,7 @@ async function deleteListing(listingId) {
   }
 }
 
-// Custom modal to replace prompt() - works in all browser contexts
 function showPrompt(message, callback) {
-  // Remove any existing modal
   const existing = document.getElementById("customPromptModal");
   if (existing) existing.remove();
 
@@ -1515,9 +1410,9 @@ async function requestReturn(listingId) {
     return;
   }
 
-  // Use custom modal instead of prompt()
+  
   showPrompt("Enter the reason for your return:", async (reason) => {
-    if (!reason) return; // User cancelled
+    if (!reason) return;
 
     console.log("Submitting return request:", { listingId, buyer_id: loggedInUser.id, buyer_email: loggedInUser.email, reason });
 
@@ -1559,10 +1454,9 @@ async function reviewReturnRequest(returnId, action) {
 
   const label = action === "approve" ? "approve" : "deny";
 
-  // Use custom modal instead of prompt()
+ 
   showPrompt(`Optional: enter a note to ${label} this return request:`, async (sellerNote) => {
-    // sellerNote can be empty string (user clicked submit without typing) or null (cancelled)
-    if (sellerNote === null) return; // User cancelled
+    if (sellerNote === null) return; 
 
     try {
       const res = await fetch(`${API}/api/returns/${returnId}/review`, {
