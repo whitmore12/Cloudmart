@@ -5,6 +5,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>User Profile | eCamp</title>
+<link rel="stylesheet" href="messaging.css" />
+<script src="messaging.js" defer></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -448,8 +450,10 @@ body {
     <a href="#activeSection" class="btn btn-outline">Active Listings</a>
     <a href="#soldSection" class="btn btn-outline">Sold Listings</a>
     <a href="#deletedSection" class="btn btn-outline">Deleted Listings</a>
+    <a href="#pendingListingsSection" class="btn btn-outline" id="pendingListingsNavBtn" style="display:none;">Pending Listings</a>
     <a href="#boughtSection" class="btn btn-outline" id="boughtNavBtn" style="display:none;">Bought Items</a>
-    <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requests (Seller)</a>
+    <a href="#messagesSection" class="btn btn-outline" id="messagesNavBtn" style="display:none;">Messages</a>
+    <a href="#returnsSection" class="btn btn-outline" id="returnsNavBtn" style="display:none;">Return Requestse</a>
   </nav>
 
   <section id="activeSection" class="section-block">
@@ -470,14 +474,47 @@ body {
     <p id="deletedEmpty" class="empty" style="display:none;">No deleted listings found.</p>
   </section>
 
+  <section id="pendingListingsSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Pending Listings</h2>
+    <div id="pendingListingsListings" class="grid"></div>
+    <p id="pendingListingsEmpty" class="empty" style="display:none;">No pending listings found.</p>
+  </section>
+
   <section id="boughtSection" class="section-block" style="display:none;">
     <h2 class="section-title">Bought Items</h2>
     <div id="boughtListings" class="grid"></div>
     <p id="boughtEmpty" class="empty" style="display:none;">No purchased items found.</p>
   </section>
 
+  <!-- Built by Kwame: messages section -->
+  <section id="messagesSection" class="section-block" style="display:none;">
+    <h2 class="section-title">Messages</h2>
+    <div id="chatList" class="grid"></div>
+    <p id="chatsEmpty" class="empty" style="display:none;">No messages yet.</p>
+
+    <div id="chatPanel" class="chat-panel" style="display:none;">
+      <div class="chat-header">
+        <div>
+          <img id="chatListingImage" class="chat-listing-image" alt="Listing photo" hidden>
+          <h3 id="chatTitle">Chat</h3>
+          <p id="chatWith" class="meta"></p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline" type="button" onclick="refreshChat()">Refresh</button>
+          <button class="btn btn-outline" type="button" onclick="closeChat()">Close</button>
+        </div>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-reply">
+        <textarea id="chatReplyInput" maxlength="2000" placeholder="Write a reply..."></textarea>
+        <input id="chatImageInput" type="file" accept="image/*">
+        <button class="btn btn-primary" type="button" onclick="sendChatReply()">Send</button>
+      </div>
+    </div>
+  </section>
+
   <section id="returnsSection" class="section-block" style="display:none;">
-    <h2 class="section-title">Return Requests (As Seller)</h2>
+    <h2 class="section-title">Return Requests</h2>
 
     <h3 class="subsection-title">Pending</h3>
     <div id="pendingReturnRequests" class="grid"></div>
@@ -545,6 +582,7 @@ const previewWrap = document.getElementById("previewWrap");
 const activeListingsEl = document.getElementById("activeListings");
 const soldListingsEl = document.getElementById("soldListings");
 const deletedListingsEl = document.getElementById("deletedListings");
+const pendingListingsListingsEl = document.getElementById("pendingListingsListings");
 const boughtListingsEl = document.getElementById("boughtListings");
 
 const pendingReturnRequestsEl = document.getElementById("pendingReturnRequests");
@@ -554,6 +592,7 @@ const approvedReturnRequestsEl = document.getElementById("approvedReturnRequests
 const activeEmpty = document.getElementById("activeEmpty");
 const soldEmpty = document.getElementById("soldEmpty");
 const deletedEmpty = document.getElementById("deletedEmpty");
+const pendingListingsEmpty = document.getElementById("pendingListingsEmpty");
 const boughtEmpty = document.getElementById("boughtEmpty");
 
 const pendingEmpty = document.getElementById("pendingEmpty");
@@ -561,8 +600,10 @@ const deniedEmpty = document.getElementById("deniedEmpty");
 const approvedEmpty = document.getElementById("approvedEmpty");
 
 const boughtSection = document.getElementById("boughtSection");
+const pendingListingsSection = document.getElementById("pendingListingsSection");
 const returnsSection = document.getElementById("returnsSection");
 const boughtNavBtn = document.getElementById("boughtNavBtn");
+const pendingListingsNavBtn = document.getElementById("pendingListingsNavBtn");
 const returnsNavBtn = document.getElementById("returnsNavBtn");
 
 // Debug: Log API URL and user on load
@@ -785,6 +826,7 @@ function renderListingCard(item, options = {}) {
 
   let actionButtons = "";
   let extraInfo = "";
+  let pinSection = "";
 
   // Context badge
   let contextBadge = "";
@@ -794,21 +836,33 @@ function renderListingCard(item, options = {}) {
     contextBadge = `<span class="badge" style="background:rgba(226,93,59,0.15);color:#e25d3b;border:1px solid rgba(226,93,59,0.35);">As Seller</span>`;
   }
 
-  // Modified: Removed the 'Mark as Sold' button logic
   if (!isBoughtItem && isOwnProfile && status === "active") {
     actionButtons = `
       <div class="btn-row">
         <button class="btn btn-outline" onclick="editListing(${Number(item.id)})">Edit</button>
-        <button class="btn btn-secondary" onclick="markAsSold(${Number(item.id)})">Mark as Sold</button>
+      </div>
+    `;
+  } else if (!isBoughtItem && isOwnProfile && status === "pending") {
+    actionButtons = `
+      <div class="btn-row">
+        <button class="btn btn-success" onclick="confirmPurchase(${Number(item.id)})">Confirm Purchase</button>
+      </div>
+    `;
+  } else if (isBoughtItem && status === "active") {
+    actionButtons = `
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="initiatePurchase(${Number(item.id)})">Buy</button>
+      </div>
+    `;
+  } else if (isBoughtItem && status === "pending") {
+    actionButtons = `
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="copyPin(${Number(item.id)}, event)">Copy PIN for Seller</button>
       </div>
     `;
   }
 
-  
-  
-  if (isBoughtItem) {
-    // Always show "Request Return" button - buyer can request again after approval/denial
-    // Don't show return status badge on the card (that's in Return Requests section)
+  if (isBoughtItem && (status === "sold" || status === "deleted")) {
     actionButtons = `
       <div class="btn-row">
         <button class="btn btn-warning" onclick="requestReturn(${Number(item.id)})">
@@ -827,6 +881,70 @@ function renderListingCard(item, options = {}) {
   } else if (status === "deleted") {
     badgeClass = "deleted";
     badgeLabel = "Deleted";
+  } else if (status === "pending") {
+    badgeClass = "pending";
+    badgeLabel = "Pending";
+  }
+
+  if (status === "pending" && (isBoughtItem || isSellerView)) {
+    if (isSellerView) {
+      pinSection = `
+        <div class="pin-section" style="margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="color: #1d233e;">Confirm Purchase</strong>
+            <span class="pin-status-badge" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e;">
+              Awaiting Seller Confirmation
+            </span>
+          </div>
+          <p class="meta" style="margin-bottom: 8px; font-size: 0.85rem; color: #1d233e;">
+            Enter the 4-digit PIN the buyer shared with you to complete the sale.
+          </p>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="pinInput${item.id}" maxlength="4" pattern="\d{4}" placeholder="Enter 4-digit PIN" 
+              style="font-family: monospace; font-size: 1.5rem; font-weight: bold; letter-spacing: 8px; text-align: center; 
+                     padding: 8px 16px; border-radius: 6px; border: 2px solid #e25d3b; min-width: 120px; width: 140px;"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
+            <button class="btn btn-success" onclick="confirmPurchaseWithPin(${item.id})" style="padding: 8px 16px; font-size: 0.85rem;">
+              Confirm Purchase
+            </button>
+            ${item.pin_expires_at ? `<span class="pin-expiry" style="font-size: 0.8rem; color: #706b5f;">PIN expires: ${new Date(item.pin_expires_at).toLocaleString()}</span>` : ''}
+          </div>
+        </div>
+      `;
+    } else {
+      pinSection = `
+        <div class="pin-section" style="margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="color: #1d233e;">Your Verification PIN</strong>
+            <span class="pin-status-badge" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e;">
+              Share with Seller
+            </span>
+          </div>
+          <p class="meta" style="margin-bottom: 8px; font-size: 0.85rem; color: #1d233e;">
+            Share this PIN with the seller so they can confirm the purchase.
+          </p>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <span id="pinDisplay${item.id}" style="font-family: monospace; font-size: 1.5rem; font-weight: bold; letter-spacing: 4px; color: #1d233e; background: white; padding: 8px 16px; border-radius: 6px; border: 2px dashed #e25d3b; min-width: 120px; text-align: center;">****</span>
+            <button class="btn btn-outline" onclick="togglePin(${item.id})" style="padding: 8px 12px; font-size: 0.85rem;" id="pinToggleBtn${item.id}">Show PIN</button>
+            <button class="btn btn-secondary" onclick="copyPin(${item.id}, event)" style="padding: 8px 12px; font-size: 0.85rem;">Copy</button>
+            ${item.pin_expires_at ? `<span class="pin-expiry" style="font-size: 0.8rem; color: #706b5f;">Expires: ${new Date(item.pin_expires_at).toLocaleString()}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }
+  } else if (status === "sold" && (isBoughtItem || isSellerView)) {
+    const pinVerifiedAt = item.pin_verified_at;
+    pinSection = `
+      <div class="pin-section" style="margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <strong style="color: #1d233e;">Purchase Completed</strong>
+          <span class="pin-status-badge" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; background: #d1fae5; color: #065f46;">
+            ✓ Verified
+          </span>
+        </div>
+        ${pinVerifiedAt ? `<p class="meta" style="font-size: 0.8rem; color: #706b5f;">Completed: ${new Date(pinVerifiedAt).toLocaleString()}</p>` : ''}
+      </div>
+    `;
   }
 
   return `
@@ -840,13 +958,13 @@ function renderListingCard(item, options = {}) {
         ${contextBadge}
         ${(!isBoughtItem && isOwnProfile && status === "sold" && safeBuyerEmail) ? `<p class="meta">Buyer: ${safeBuyerEmail}</p>` : ""}
         ${isBoughtItem ? `<p class="meta">Seller: ${escapeHtml(item.seller || "Unknown")}</p>` : ""}
+        ${pinSection}
         ${extraInfo}
         ${actionButtons}
       </div>
     </article>
   `;
 }
-
 function renderReturnRequestCard(item, options = {}) {
   const { isBuyerView = false } = options;
   const safeTitle = escapeHtml(item.title);
@@ -927,6 +1045,50 @@ async function loadBoughtItems() {
     boughtListingsEl.innerHTML = "";
     boughtEmpty.textContent = "Could not load purchased items. Please refresh and try again.";
     boughtEmpty.style.display = "block";
+  }
+}
+
+async function loadPendingListings() {
+  if (!loggedInUser || !loggedInUser.id) {
+    pendingListingsSection.style.display = "none";
+    pendingListingsNavBtn.style.display = "none";
+    return;
+  }
+
+  pendingListingsSection.style.display = "block";
+  pendingListingsNavBtn.style.display = "inline-flex";
+
+  try {
+    const res = await fetch(`${API}/api/listings/pending?user_id=${loggedInUser.id}&role=${loggedInUser.role}`);
+    if (!res.ok) {
+      throw new Error(`Could not load pending listings (HTTP ${res.status}).`);
+    }
+    const pendingItems = await res.json();
+
+    const list = Array.isArray(pendingItems) ? pendingItems : [];
+
+    pendingListingsListingsEl.innerHTML = list.map(item => {
+      const isSeller = item.user_id === loggedInUser.id;
+      const isBuyer = item.buyer_email && item.buyer_email.toLowerCase() === loggedInUser.email.toLowerCase();
+      
+      return renderListingCard(item, {
+        isOwnProfile: isSeller,
+        isBoughtItem: isBuyer,
+        isSellerView: isSeller
+      });
+    }).join("");
+
+    pendingListingsEmpty.style.display = list.length ? "none" : "block";
+    pendingListingsEmpty.textContent = "No pending listings found.";
+
+    if (window.location.hash === "#pendingListingsSection") {
+      requestAnimationFrame(() => pendingListingsSection.scrollIntoView({ behavior: "smooth" }));
+    }
+  } catch (err) {
+    console.error("Error loading pending listings:", err);
+    pendingListingsListingsEl.innerHTML = "";
+    pendingListingsEmpty.textContent = "Could not load pending listings. Please refresh and try again.";
+    pendingListingsEmpty.style.display = "block";
   }
 }
 
@@ -1056,44 +1218,167 @@ async function loadProfile() {
   } finally {
     // A seller-listing/profile error must not prevent the buyer's own purchases from loading.
     await loadBoughtItems();
+    await loadPendingListings();
     await loadSellerReturnRequests();
   }
 }
 
-async function markAsSold(listingId) {
+async function initiatePurchase(listingId) {
   if (!loggedInUser) {
     alert("Please sign in first.");
     return;
   }
 
-  // Use custom modal instead of prompt()
-  showPrompt("Enter the buyer's email:", async (buyerEmail) => {
-    if (!buyerEmail || !buyerEmail.trim()) return;
+  if (!confirm("Initiate purchase for this listing? You will receive a PIN to share with the seller.")) return;
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}/initiate-purchase`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to initiate purchase.");
+      return;
+    }
+
+    alert("Purchase initiated!\nYour verification PIN: " + data.verification_pin + "\nShare this PIN with the seller to complete the purchase.");
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+async function confirmPurchase(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  showPrompt("Enter the 4-digit PIN from the buyer:", async (pin) => {
+    if (!pin || !pin.trim() || pin.trim().length !== 4 || !/^\d{4}$/.test(pin.trim())) {
+      alert("Please enter a valid 4-digit PIN.");
+      return;
+    }
 
     try {
-      const res = await fetch(`${API}/api/listings/${listingId}/mark-sold`, {
-        method: "PUT",
+      const res = await fetch(`${API}/api/listings/${listingId}/confirm-purchase`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: loggedInUser.id,
           role: loggedInUser.role,
-          buyer_email: buyerEmail.trim()
+          pin: pin.trim()
         })
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || "Failed to mark listing as sold.");
+        alert(data.error || "Failed to confirm purchase.");
         return;
       }
 
-      alert("Listing marked as sold.");
+      alert("Purchase confirmed! Listing marked as sold.");
       loadProfile();
     } catch (err) {
       console.error(err);
       alert("Error connecting to server.");
     }
+  });
+}
+async function confirmPurchaseWithPin(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  const pinInput = document.getElementById(`pinInput${listingId}`);
+  const pin = pinInput ? pinInput.value.trim() : "";
+
+  if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+    alert("Please enter a valid 4-digit PIN.");
+    if (pinInput) pinInput.focus();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}/confirm-purchase`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loggedInUser.id,
+        role: loggedInUser.role,
+        pin: pin
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to confirm purchase.");
+      if (pinInput) pinInput.focus();
+      return;
+    }
+
+    alert("Purchase confirmed! Listing marked as sold.");
+    loadProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
+
+
+function togglePin(listingId) {
+  const pinDisplay = document.getElementById(`pinDisplay${listingId}`);
+  const toggleBtn = document.getElementById(`pinToggleBtn${listingId}`);
+  
+  if (pinDisplay.textContent === "****") {
+    fetch(`${API}/api/listings/${listingId}/get-pin?user_id=${loggedInUser.id}&role=${loggedInUser.role}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          pinDisplay.textContent = data.verification_pin;
+          toggleBtn.textContent = "Hide PIN";
+        } else {
+          alert("Failed to load PIN: " + data.error);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Error loading PIN");
+      });
+  } else {
+    pinDisplay.textContent = "****";
+    toggleBtn.textContent = "Show PIN";
+  }
+}
+
+function copyPin(listingId, event) {
+  const pinDisplay = document.getElementById(`pinDisplay${listingId}`);
+  const pin = pinDisplay.textContent;
+  
+  if (pin === "****") {
+    alert("Please show the PIN first before copying.");
+    return;
+  }
+  
+  navigator.clipboard.writeText(pin).then(() => {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = originalText, 1500);
+  }).catch(err => {
+    console.error(err);
+    alert("Failed to copy PIN");
   });
 }
 

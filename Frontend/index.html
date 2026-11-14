@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>eCamp Marketplace</title>
 <link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="messaging.css" />
+<script src="messaging.js" defer></script>
 <style>
 * { box-sizing: border-box; margin:0; padding:0; }
 body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1d233e; line-height:1.5; }
@@ -67,15 +69,69 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
   color: #e25d3b;
 }
 
-.fb-layout { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 70px); }
+/* Edited by Makaila Williams 11/12/26 */
+/* Purpose: move the filters to the top so the listings do not get squished in a small window */
+.fb-layout { display: block; min-height: calc(100vh - 70px); }
 
 .fb-sidebar {
   padding: 20px;
   background: #ffffff;
-  border-right: 1px solid rgba(29,35,62,0.12);
+  border-bottom: 1px solid rgba(29,35,62,0.12);
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
+}
+
+/* the pills are really checkboxes, the css just makes them look like buttons */
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.pill { cursor: pointer; flex: 0 0 auto; }
+.pill input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.pill span {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(29,35,62,0.25);
+  background: #ffffff;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  transition: 0.15s;
+}
+.pill:hover span { border-color: #e25d3b; }
+.pill input:checked + span {
+  background: #e25d3b;
+  border-color: #e25d3b;
+  color: #ffffff;
+}
+.pill input:focus-visible + span { outline: 2px solid #1d233e; outline-offset: 2px; }
+
+.fb-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fb-controls-right { display: flex; gap: 8px; align-items: center; }
+
+.sort-select {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(29,35,62,0.25);
+  background: #ffffff;
+  color: #1d233e;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
 }
 
 .fb-search {
@@ -89,10 +145,9 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
 }
 
 .fb-section h4 { margin-bottom: 10px; font-weight: bold; }
-.fb-section label { display: block; margin-bottom: 8px; cursor: pointer; font-size: 0.95rem; }
-
-.fb-content { padding: 20px; overflow-y: auto; }
-.fb-topbar h2 { font-size: 1.5rem; margin-bottom: 15px; }
+.fb-content { padding: 20px; }
+.fb-topbar { display: flex; align-items: baseline; gap: 12px; margin-bottom: 15px; }
+.fb-topbar h2 { font-size: 1.5rem; }
 
 .fb-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
 
@@ -168,8 +223,9 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
 }
 
 @media (max-width: 900px) {
-  .fb-layout { grid-template-columns: 1fr; }
   .fb-grid { grid-template-columns: repeat(2,1fr); }
+  /* on small screens the pills turn into one row you scroll sideways */
+  #categoryPills { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; }
 }
 
 @media (max-width: 600px) {
@@ -200,6 +256,8 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
 </header>
 
 <main class="fb-layout">
+  <!-- Edited by Makaila Williams 11/12/26 -->
+  <!-- Purpose: category and condition pills and the sort dropdown -->
   <aside class="fb-sidebar">
     <h2>Marketplace</h2>
 
@@ -213,27 +271,73 @@ body { font-family: system-ui, Arial, sans-serif; background: #f3f0e7; color: #1
 
     <div class="fb-section">
       <h4>Categories</h4>
-      <label><input type="checkbox" value="Electronics"> Electronics</label>
-      <label><input type="checkbox" value="Books"> Books</label>
-      <label><input type="checkbox" value="Furniture"> Furniture</label>
-      <label><input type="checkbox" value="Appliances"> Appliances</label>
+      <!-- clicking a pill filters right away -->
+      <div class="pill-row" id="categoryPills" onchange="applyFilters()">
+        <label class="pill"><input type="checkbox" name="category" value="Clothing"><span>Clothing</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Shoes"><span>Shoes</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Bags &amp; Accessories"><span>Bags &amp; Accessories</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Electronics"><span>Electronics</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Books"><span>Books</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Furniture"><span>Furniture</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Appliances"><span>Appliances</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Dorm &amp; Home"><span>Dorm &amp; Home</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Beauty"><span>Beauty</span></label>
+        <label class="pill"><input type="checkbox" name="category" value="Other"><span>Other</span></label>
+      </div>
     </div>
 
-    <button class="btn btn-outline full" onclick="applyFilters()">Apply Filters</button>
-    <button class="btn btn-outline full" onclick="clearFilters()">Clear Filters</button>
+    <div class="fb-controls">
+      <div class="pill-row" onchange="applyFilters()">
+        <label class="pill"><input type="checkbox" name="condition" value="New"><span>New</span></label>
+        <label class="pill"><input type="checkbox" name="condition" value="Used"><span>Used</span></label>
+      </div>
+
+      <div class="fb-controls-right">
+        <select id="sortSelect" class="sort-select" onchange="applyFilters()">
+          <option value="newest">Sort: Newest</option>
+          <option value="low">Price: Low to High</option>
+          <option value="high">Price: High to Low</option>
+        </select>
+        <button class="btn btn-outline" onclick="clearFilters()">Clear</button>
+      </div>
+    </div>
   </aside>
 
   <section class="fb-content">
-    <div class="fb-topbar"><h2>Today's Picks</h2></div>
+    <div class="fb-topbar"><h2>Today's Picks</h2><span id="resultCount" class="muted"></span></div>
     <div id="listings" class="fb-grid"></div>
   </section>
 </main>
+
+<!-- Message seller popup -->
+<div id="msgOverlay" class="msg-overlay">
+  <div class="msg-box">
+    <h3 id="msgItemTitle">Message seller</h3>
+    <img id="msgItemImage" class="msg-item-image" alt="Listing photo" hidden>
+    <p id="msgSellerName" class="muted"></p>
+    <textarea id="msgBody" maxlength="2000" placeholder="Write your message..."></textarea>
+    <input id="msgImageInput" type="file" accept="image/*">
+    <div class="msg-actions">
+      <button class="btn btn-primary" id="msgSendBtn" onclick="sendMessageToSeller()">Send</button>
+      <button class="btn btn-outline" onclick="closeMessageBox()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const API = window.location.origin;
 
 let allListings = [];
 let wishlistItems = [];
+
+// Edited by Makaila Williams 11/12/26
+// Purpose: show a placeholder picture when a listing has no photo
+const NO_PHOTO = "data:image/svg+xml;utf8," + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="180">' +
+  '<rect width="100%" height="100%" fill="#ece7d6"/>' +
+  '<text x="50%" y="50%" fill="#706b5f" font-family="Arial" font-size="16" ' +
+  'text-anchor="middle" dominant-baseline="middle">No photo yet</text></svg>'
+);
 let cart = JSON.parse(localStorage.getItem("cart")) || [];
 const user = JSON.parse(localStorage.getItem("user") || "null");
 
@@ -309,7 +413,7 @@ async function loadListings() {
 
     allListings = Array.isArray(data) ? data : [];
 
-    renderListings(allListings);
+    applyFilters();
   } catch (err) {
     console.error("Error loading listings:", err);
     document.getElementById("listings").innerHTML = "<p class='muted'>Unable to load listings right now.</p>";
@@ -331,9 +435,12 @@ async function loadWishlist() {
 function renderListings(data) {
   const container = document.getElementById("listings");
   container.innerHTML = "";
-    
+
+  const countEl = document.getElementById("resultCount");
+  if (countEl) countEl.innerText = (data ? data.length : 0) + (data && data.length === 1 ? " item" : " items");
+
   if (!data || data.length === 0) {
-    container.innerHTML = "<p class='muted'>No listings found.</p>";
+    container.innerHTML = "<p class='muted'>Nothing here yet. Try clearing a filter or two.</p>";
     return;
   }
 
@@ -351,13 +458,18 @@ function renderListings(data) {
     const safeImage = escapeHtml(item.image);
     const displayPrice = Number(item.price) || 0;
 
+    // clothing and shoes also show their fit and size on the card
+    const sizeLine = item.size
+      ? `<p class="condition">${item.fit ? escapeHtml(item.fit) + " • " : ""}${escapeHtml(item.size)}</p>`
+      : "";
+
     const sellerMarkup = safeSeller
       ? `<button class="seller-btn" onclick="goToSellerListings('${safeSeller}')">${safeSeller}</button>`
       : `<span>Unknown</span>`;
 
     container.innerHTML += `
   <article class="feature-card">
-    <img src="${safeImage}" class="product-img" alt="${safeTitle}">
+    <img src="${safeImage}" class="product-img" alt="${safeTitle}" onerror="this.onerror=null;this.src=NO_PHOTO">
     <div class="card-body">
       <div class="card-header-row">
         <p class="price">$${displayPrice.toFixed(2)}</p>
@@ -365,7 +477,14 @@ function renderListings(data) {
 
       <h3>${safeTitle}</h3>
       <p class="condition">${safeCategory} • ${safeCondition}</p>
+      ${sizeLine}
       <p class="muted">Seller: ${sellerMarkup}</p>
+
+      ${
+        !isOwner ? `
+          <button onclick="openMessageBox(${Number(item.id)})" class="btn btn-primary full" style="margin-top: 5px;">💬 Message seller</button>
+        ` : ""
+      }
 
       <button class="heart-btn ${isSaved ? 'saved' : ''}" onclick="toggleWishlist(${item.id}, ${isSaved})">${isSaved ? '❤️' : '🤍'}</button>
 
@@ -398,17 +517,59 @@ function addToCart(id) {
     return alert("This item has already been sold.");
   }
 
+  if (cart.some(cartItem => Number(cartItem.id) === Number(item.id))) {
+    return alert("This item is already in your cart.");
+  }
+
   cart.push(item);
   localStorage.setItem("cart", JSON.stringify(cart));
   updateCartCount();
   alert("Added to cart!");
 }
 
+// Edited by Makaila Williams 11/12/26
+// Purpose: filter by category and condition, then sort
+async function initiatePurchase(listingId) {
+  if (!user || !user.id) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  if (!confirm("Initiate purchase for this listing? You will receive a PIN to share with the seller.")) return;
+
+  try {
+    const res = await fetch(`${API}/api/listings/${listingId}/initiate-purchase`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user.id,
+        role: user.role
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to initiate purchase.");
+      return;
+    }
+
+    alert("Purchase initiated!\nYour verification PIN: " + data.verification_pin + "\nShare this PIN with the seller to complete the purchase.");
+    await loadListings();
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server.");
+  }
+}
 function applyFilters() {
   const searchQuery = document.getElementById("searchInput").value.toLowerCase().trim();
   const selectedCategories = Array.from(
-    document.querySelectorAll("input[type=checkbox]:checked")
+    document.querySelectorAll("input[name=category]:checked")
   ).map(cb => cb.value);
+  const selectedConditions = Array.from(
+    document.querySelectorAll("input[name=condition]:checked")
+  ).map(cb => cb.value);
+  const sortBy = document.getElementById("sortSelect").value;
 
   let filtered = [...allListings];
 
@@ -426,13 +587,29 @@ function applyFilters() {
     );
   }
 
+  if (selectedConditions.length > 0) {
+    filtered = filtered.filter(item =>
+      selectedConditions.includes(item.condition)
+    );
+  }
+
+  // sorting filtered will not change allListings because it is a copy
+  if (sortBy === "low") {
+    filtered.sort((a, b) => Number(a.price) - Number(b.price));
+  } else if (sortBy === "high") {
+    filtered.sort((a, b) => Number(b.price) - Number(a.price));
+  } else {
+    filtered.sort((a, b) => Number(b.id) - Number(a.id));
+  }
+
   renderListings(filtered);
 }
 
 function clearFilters() {
   document.getElementById("searchInput").value = "";
-  document.querySelectorAll("input[type=checkbox]").forEach(cb => cb.checked = false);
-  renderListings(allListings);
+  document.querySelectorAll("input[name=category], input[name=condition]").forEach(cb => cb.checked = false);
+  document.getElementById("sortSelect").value = "newest";
+  applyFilters();
 }
 
 function editListing(listingId) {
@@ -480,7 +657,7 @@ async function toggleWishlist(listingId, isSaved) {
 
     if (res.ok) {
       await loadWishlist();
-      renderListings(allListings);
+      applyFilters();
     } else {
       const data = await res.json();
       alert(data.error || "Could not update wishlist.");
