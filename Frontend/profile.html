@@ -1223,16 +1223,209 @@ async function loadProfile() {
   }
 }
 
-// Emuesiri Imarah - Duplicate Purchase Prevention
+
+// Emuesiri Imarah - Duplicate Transaction fix
 
 const pendingPurchaseActions = new Set();
 const completedPurchaseActions = new Set();
 
+// Disable or restore purchase buttons while requests are processing.
+function setPurchaseButtonsBusy(listingId, busy) {
+  const actions = [
+    `initiatePurchase(${listingId})`,
+    `confirmPurchase(${listingId})`,
+    `confirmPurchaseWithPin(${listingId})`
+  ];
 
+  document.querySelectorAll("button[onclick]").forEach(button => {
+    const action = button.getAttribute("onclick");
 
-function togglePin(listingId) {
-  const pinDisplay = document.getElementById(`pinDisplay${listingId}`);
-  const toggleBtn = document.getElementById(`pinToggleBtn${listingId}`);
+    if (!actions.includes(action)) return;
+
+    if (busy) {
+      if (!button.dataset.originalText) {
+        button.dataset.originalText = button.textContent;
+      }
+
+      button.disabled = true;
+      button.textContent = "Processing...";
+    } else {
+      button.disabled = false;
+      button.textContent =
+        button.dataset.originalText || button.textContent;
+    }
+  });
+}
+
+// Send a purchase request while preventing duplicate submissions.
+async function submitPurchaseAction(listingId, endpoint, pin = null) {
+  const actionKey = `${endpoint}:${listingId}`;
+
+  if (pendingPurchaseActions.has(listingId)) return;
+  if (completedPurchaseActions.has(actionKey)) return;
+
+  pendingPurchaseActions.add(listingId);
+  setPurchaseButtonsBusy(listingId, true);
+
+  let successful = false;
+
+  try {
+    const payload = {
+      user_id: loggedInUser.id,
+      role: loggedInUser.role
+    };
+
+    if (pin !== null) {
+      payload.pin = pin;
+    }
+
+    const res = await fetch(
+      `${API}/api/listings/${listingId}/${endpoint}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Purchase request failed.");
+      return;
+    }
+
+    successful = true;
+    completedPurchaseActions.add(actionKey);
+
+    if (endpoint === "initiate-purchase") {
+      alert(
+        "Purchase initiated!\nYour verification PIN: " +
+        data.verification_pin +
+        "\nShare this PIN with the seller to complete the purchase."
+      );
+    } else {
+      alert("Purchase confirmed! Listing marked as sold.");
+    }
+
+    await loadProfile();
+
+  } catch (err) {
+    console.error(err);
+
+    alert(
+      "An error occurred. Check the listing status before trying again."
+    );
+
+  } finally {
+    pendingPurchaseActions.delete(listingId);
+
+    if (!successful) {
+      setPurchaseButtonsBusy(listingId, false);
+    }
+  }
+}
+
+// Buyer starts a purchase and receives a verification PIN.
+async function initiatePurchase(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  if (pendingPurchaseActions.has(listingId)) return;
+
+  if (
+    completedPurchaseActions.has(`initiate-purchase:${listingId}`)
+  ) return;
+
+  if (!confirm(
+    "Initiate purchase for this listing? You will receive a PIN to share with the seller."
+  )) {
+    return;
+  }
+
+  await submitPurchaseAction(
+    listingId,
+    "initiate-purchase"
+  );
+}
+
+// Seller confirms a purchase through the PIN popup.
+async function confirmPurchase(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  if (pendingPurchaseActions.has(listingId)) return;
+
+  if (
+    completedPurchaseActions.has(`confirm-purchase:${listingId}`)
+  ) return;
+
+  // Prevent repeated clicks while the popup is open.
+  pendingPurchaseActions.add(listingId);
+
+  showPrompt(
+    "Enter the 4-digit PIN from the buyer:",
+    async (pin) => {
+      pendingPurchaseActions.delete(listingId);
+
+      if (pin === null) return;
+
+      if (!/^\d{4}$/.test(pin.trim())) {
+        alert("Please enter a valid 4-digit PIN.");
+        return;
+      }
+
+      await submitPurchaseAction(
+        listingId,
+        "confirm-purchase",
+        pin.trim()
+      );
+    }
+  );
+}
+
+// Seller confirms a purchase using the visible PIN input field.
+async function confirmPurchaseWithPin(listingId) {
+  if (!loggedInUser) {
+    alert("Please sign in first.");
+    return;
+  }
+
+  if (pendingPurchaseActions.has(listingId)) return;
+
+  if (
+    completedPurchaseActions.has(`confirm-purchase:${listingId}`)
+  ) return;
+
+  const pinInput = document.getElementById(
+    `pinInput${listingId}`
+  );
+
+  const pin = pinInput ? pinInput.value.trim() : "";
+
+  if (!/^\d{4}$/.test(pin)) {
+    alert("Please enter a valid 4-digit PIN.");
+
+    if (pinInput) {
+      pinInput.focus();
+    }
+
+    return;
+  }
+
+  await submitPurchaseAction(
+    listingId,
+    "confirm-purchase",
+    pin
+  );
+}
+
   
   if (pinDisplay.textContent === "****") {
     fetch(`${API}/api/listings/${listingId}/get-pin?user_id=${loggedInUser.id}&role=${loggedInUser.role}`)
