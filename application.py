@@ -26,6 +26,7 @@ load_dotenv()
 # S3 config
 from s3_config import s3, BUCKET_NAME, AWS_REGION
 from account_requests import initAccountRequests
+from word_filter import contains_profanity
 
 app = Flask(__name__)
 # Explicit WSGI alias for Vercel's Python entrypoint detector.
@@ -358,6 +359,8 @@ def register():
     password = data.get("password") or ""
     if not email or not username or not password:
         return jsonify({"error": "Email, username, and password are required."}), 400
+    if contains_profanity(username):
+        return jsonify({"error": "Username contains inappropriate language."}), 400
     if not email.endswith("@my.hamptonu.edu"):
         return jsonify({"error": "Use a Hampton email address."}), 400
     if len(password) < 8:
@@ -818,6 +821,8 @@ def create_listing():
     field_error = check_listing_fields(data)
     if field_error:
         return jsonify({"error": field_error}), 400
+    if contains_profanity(data.get("title")):
+        return jsonify({"error": "Title contains inappropriate language."}), 400
     size, fit = size_and_fit(data)
 
     conn = get_db_connection()
@@ -961,6 +966,8 @@ def update_listing(listing_id):
     field_error = check_listing_fields(data)
     if field_error:
         return jsonify({"error": field_error}), 400
+    if contains_profanity(data.get("title")):
+        return jsonify({"error": "Title contains inappropriate language."}), 400
     size, fit = size_and_fit(data)
 
     conn = get_db_connection()
