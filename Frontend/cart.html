@@ -140,7 +140,16 @@ function signOut() {
   localStorage.removeItem("userId");
   window.location.href = "/";
 }
-
+// Emuesiri Imarah - Shopping Cart XSS Prevention
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+  
 // Cart logic
 function renderCart() {
   // Fetches data to be saved in index.html 
@@ -168,23 +177,23 @@ function renderCart() {
     const price = parseFloat(item.price) || 0; 
     total += price;
 
-    itemsContainer.innerHTML += `
-      <tr>
-        <td>
-          <div class="product-info">
-            <img src="${item.image}" class="product-img">
-            <div class="product-details">
-              <h3>${item.title}</h3>
-              <p>${item.category} • ${item.condition}</p>
-            </div>
-          </div>
-        </td>
-        <td style="font-weight: bold;">$${price.toFixed(2)}</td>
-        <td>
-          <button class="btn btn-danger" onclick="removeFromCart(${index})">Remove</button>
-        </td>
-      </tr>
-    `;
+  itemsContainer.innerHTML += `
+  <tr>
+    <td>
+      <div class="product-info">
+        <img src="${escapeHtml(item.image)}" class="product-img">
+        <div class="product-details">
+          <h3>${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.category)} • ${escapeHtml(item.condition)}</p>
+        </div>
+      </div>
+    </td>
+    <td style="font-weight: bold;">$${price.toFixed(2)}</td>
+    <td>
+      <button class="btn btn-danger" onclick="removeFromCart(${index})">Remove</button>
+    </td>
+  </tr>
+`;
   });
 
   totalDisplay.innerText = "$" + total.toFixed(2);
